@@ -17,10 +17,15 @@ Date: 2026-03-28
 - @tiptap/extension-code-block-lowlight 3.21.0
 - lowlight 3.3.0
 
-## Summary
-Spike output: PASS 10, NORMALIZED 0, FAIL 2.
+## Summary (Re-run 2026-03-28)
+Spike output: PASS 10, NORMALIZED 2, FAIL 0.
 
-**Critical failure:** Both tables were removed during round‑trip serialization.
+**All constructs pass.** Tables round-trip with content and structure preserved (formatting normalized).
+
+### Root Cause of Original Failure
+The table extensions were imported using **default imports** (`import Table from "@tiptap/extension-table"`)
+but these packages only export **named exports**. Default imports resolved to `undefined` at runtime,
+so the editor had no table schema or serializer registered. Fix: use `import { Table } from ...`.
 
 ## Per‑Construct Verdicts
 
@@ -35,14 +40,15 @@ Spike output: PASS 10, NORMALIZED 0, FAIL 2.
 | Code block | <code>```bash</code> | <code>```bash</code> | PASS |
 | Blockquote | `> **Note:** This server is intentionally strict.` | `> **Note:** This server is intentionally strict.` | PASS |
 | Horizontal rule | `---` | `---` | PASS |
-| Requirements table | `| Requirement | Description | Priority |` | _Table removed; only `## 2. Requirements Table` remains_ | FAIL |
-| Mixed‑sequence table | `| Column | Value |` | _Table removed; list jumps straight to code block_ | FAIL |
+| Requirements table | `| Requirement | Description | Priority |` | Content preserved, column padding normalized | NORMALIZED |
+| Mixed‑sequence table | `| Column | Value |` | Content preserved, column padding normalized | NORMALIZED |
 | Heading after code block | `### 4.1 Heading After Code Block` | `### 4.1 Heading After Code Block` | PASS |
 
 ## Evidence Notes
-- The round‑tripped output contains the **table section headings only**, with **no table rows**.
-- All other constructs survived, but the table loss is a hard stop per the spike gate.
+- Tables round-trip with all cell content and structure intact.
+- "NORMALIZED" means the serializer re-pads columns for alignment — content is identical.
+- The `@tiptap/extension-table` v3.21.0 ships a built-in `renderTableToMarkdown` serializer that works correctly.
 
 ## Decision
-**STOP.** Table round‑trip fails (content + structure loss). Do **not** proceed to Phase 4 editor work.
-Escalate to the user with this evidence and await direction.
+**GO.** All constructs pass. Proceed to Phase 4 editor work.
+Use **named imports** (`import { Table }`) for all `@tiptap/extension-*` packages.
