@@ -9,6 +9,7 @@ import {
   getDocument,
   listDocuments,
   removeDocument,
+  loadFromDisk,
 } from "./registry";
 import { saveWithConflictDetection } from "./conflict";
 
@@ -200,6 +201,8 @@ app.get("/doc/:slug", (req, res) => {
   }
 });
 
+const restored = loadFromDisk();
+
 const server = app.listen(PORT, HOST, () => {
   const url = `http://${tailscaleHost}:${PORT}`;
   console.log("");
@@ -210,6 +213,9 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`  Port    : ${PORT}`);
   console.log(`  Mode    : ${mode}`);
   console.log(`  URL     : ${url}`);
+  if (restored > 0) {
+    console.log(`  Docs    : ${restored} restored from disk`);
+  }
   console.log("");
 });
 
