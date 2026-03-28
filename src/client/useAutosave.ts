@@ -2,11 +2,15 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import type { Editor } from "@tiptap/react";
 import type { SaveResponse } from "../shared/types";
 
-export interface AutosaveState {
+export interface AutosaveStatus {
   status: "idle" | "saving" | "saved" | "conflict" | "error";
   message: string;
   isSaving: boolean;
   lastSavedAt: Date | null;
+}
+
+export interface AutosaveState extends AutosaveStatus {
+  save: () => Promise<void>;
 }
 
 const DEBOUNCE_MS = 2000;
@@ -16,7 +20,7 @@ export function useAutosave(
   slug: string,
   baseMtimeRef: React.MutableRefObject<number>,
 ): AutosaveState {
-  const [state, setState] = useState<AutosaveState>({
+  const [state, setState] = useState<AutosaveStatus>({
     status: "idle",
     message: "",
     isSaving: false,
@@ -114,5 +118,5 @@ export function useAutosave(
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, [editor, slug, baseMtimeRef]);
 
-  return state;
+  return { ...state, save };
 }

@@ -177,3 +177,31 @@ body {
 .ProseMirror ::selection {
   background: rgba(0, 102, 204, 0.15);
 }
+
+/* Save & Done button */
+.btn-done {
+  padding: 8px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #f5f5f5;
+  color: #333;
+  cursor: pointer;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.1s;
+}
+
+.btn-done:active {
+  background: #ddd;
+  transform: scale(0.97);
+}
+
+.btn-done:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

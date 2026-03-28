@@ -180,12 +180,9 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}</style></head>
 </body></html>`);
 });
 
-// SPA serving for /doc/:slug routes
+// SPA serving for /doc/:slug routes — always serve built assets
 const clientDistDir = path.resolve(__dirname, "../../dist/client");
-
-if (mode === "production") {
-  app.use(express.static(clientDistDir));
-}
+app.use(express.static(clientDistDir));
 
 app.get("/doc/:slug", (req, res) => {
   const entry = getDocument(req.params.slug);
@@ -193,12 +190,7 @@ app.get("/doc/:slug", (req, res) => {
     res.status(404).send("<!DOCTYPE html><html><body><h1>404</h1><p>Document not found.</p></body></html>");
     return;
   }
-  if (mode === "production") {
-    res.sendFile(path.join(clientDistDir, "index.html"));
-  } else {
-    // In dev mode, redirect to Vite dev server
-    res.redirect(`http://localhost:5173/doc/${req.params.slug}`);
-  }
+  res.sendFile(path.join(clientDistDir, "index.html"));
 });
 
 const restored = loadFromDisk();

@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/jeffhaskin/plan-present#readme",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
     "@tiptap/core": "3.21.0",
     "@tiptap/extension-code-block-lowlight": "3.21.0",
     "@tiptap/extension-table": "3.21.0",

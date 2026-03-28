@@ -21,6 +21,7 @@ export default function Editor({ slug }: { slug: string }) {
   const baseMtimeRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [closed, setClosed] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -57,7 +58,7 @@ export default function Editor({ slug }: { slug: string }) {
         baseMtimeRef.current = data.mtime;
 
         if (editor) {
-          editor.commands.setContent(data.content, { emitUpdate: false });
+          editor.commands.setContent(data.content, { emitUpdate: false, contentType: 'markdown' });
         }
         setLoading(false);
       } catch {
@@ -76,6 +77,34 @@ export default function Editor({ slug }: { slug: string }) {
       cancelled = true;
     };
   }, [slug, editor]);
+
+  const [closing, setClosing] = useState(false);
+
+  function handleSaveAndClose() {
+    if (closing) return;
+    setClosing(true);
+
+    const doClose = () => {
+      fetch(`/api/doc/${slug}`, { method: "DELETE" })
+        .finally(() => setClosed(true));
+    };
+
+    try {
+      autosave.save().then(doClose).catch(doClose);
+    } catch {
+      doClose();
+    }
+  }
+
+  if (closed) {
+    return (
+      <main style={{ padding: "2rem", fontFamily: "system-ui, sans-serif", textAlign: "center" }}>
+        <h1>Done</h1>
+        <p><strong>{fileName}</strong> has been saved and closed.</p>
+        <p style={{ color: "#666", fontSize: "14px" }}>You can close this tab.</p>
+      </main>
+    );
+  }
 
   if (error) {
     return (
@@ -110,6 +139,13 @@ export default function Editor({ slug }: { slug: string }) {
         }}
       >
         <span>{fileName}</span>
+        <button
+          className="btn-done"
+          onClick={handleSaveAndClose}
+          disabled={closing || autosave.isSaving}
+        >
+          {closing ? "Closing..." : "Save & Done"}
+        </button>
       </header>
       <EditorContent
         editor={editor}
