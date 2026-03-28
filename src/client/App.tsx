@@ -1,15 +1,8 @@
+import Editor from "./Editor";
+
 function parseSlug(): string | null {
   const match = window.location.pathname.match(/^\/doc\/([^/]+)$/);
   return match ? match[1] : null;
-}
-
-function Editor({ slug }: { slug: string }) {
-  return (
-    <main>
-      <h1>Editing: {slug}</h1>
-      <p>Editor placeholder — Tiptap integration coming soon.</p>
-    </main>
-  );
 }
 
 export default function App() {
