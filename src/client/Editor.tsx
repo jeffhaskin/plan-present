@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
@@ -10,13 +10,15 @@ import { TaskList } from "@tiptap/extension-task-list";
 import { TaskItem } from "@tiptap/extension-task-item";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
+import { useAutosave } from "./useAutosave";
 import type { DocResponse } from "../shared/types";
+import "./style.css";
 
 const lowlight = createLowlight(common);
 
 export default function Editor({ slug }: { slug: string }) {
   const [fileName, setFileName] = useState("");
-  const [baseMtime, setBaseMtime] = useState(0);
+  const baseMtimeRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +37,8 @@ export default function Editor({ slug }: { slug: string }) {
     content: "",
   });
 
+  const autosave = useAutosave(editor, slug, baseMtimeRef);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -50,13 +54,13 @@ export default function Editor({ slug }: { slug: string }) {
         if (cancelled) return;
 
         setFileName(data.fileName);
-        setBaseMtime(data.mtime);
+        baseMtimeRef.current = data.mtime;
 
         if (editor) {
           editor.commands.setContent(data.content, { emitUpdate: false });
         }
         setLoading(false);
-      } catch (err) {
+      } catch {
         if (!cancelled) {
           setError("Failed to load document");
           setLoading(false);
@@ -100,9 +104,25 @@ export default function Editor({ slug }: { slug: string }) {
           fontSize: "14px",
           color: "#666",
           flexShrink: 0,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
-        {fileName}
+        <span>{fileName}</span>
+        <span
+          style={{
+            fontSize: "12px",
+            color:
+              autosave.status === "error" || autosave.status === "conflict"
+                ? "#cc3300"
+                : autosave.status === "saved"
+                  ? "#339933"
+                  : "#999",
+          }}
+        >
+          {autosave.message}
+        </span>
       </header>
       <EditorContent
         editor={editor}
