@@ -1,0 +1,50 @@
+{
+  "name": "plan-present",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch src/server/index.ts",
+    "build": "tsc -p tsconfig.server.json && vite build",
+    "start": "node dist/server/index.js",
+    "spike": "tsx spike/table-roundtrip.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeffhaskin/plan-present.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jeffhaskin/plan-present/issues"
+  },
+  "homepage": "https://github.com/jeffhaskin/plan-present#readme",
+  "dependencies": {
+    "@tiptap/core": "3.21.0",
+    "@tiptap/extension-code-block-lowlight": "3.21.0",
+    "@tiptap/extension-table": "3.21.0",
+    "@tiptap/extension-table-cell": "3.21.0",
+    "@tiptap/extension-table-header": "3.21.0",
+    "@tiptap/extension-table-row": "3.21.0",
+    "@tiptap/extension-task-item": "3.21.0",
+    "@tiptap/extension-task-list": "3.21.0",
+    "@tiptap/markdown": "3.21.0",
+    "@tiptap/pm": "3.21.0",
+    "@tiptap/react": "3.21.0",
+    "@tiptap/starter-kit": "3.21.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "express": "^5.2.1",
+    "lowlight": "^3.3.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3"
+  }
+}
