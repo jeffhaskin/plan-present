@@ -138,6 +138,47 @@ app.delete("/api/doc/:slug", (req, res) => {
   res.json({ removed: true });
 });
 
+// GET / — index page listing registered documents
+app.get("/", (_req, res) => {
+  const docs = listDocuments();
+  const tailscaleUrl = `http://${tailscaleHost}:${PORT}`;
+
+  if (docs.length === 0) {
+    res.send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>plan-present</title>
+<style>body{font-family:system-ui,sans-serif;max-width:700px;margin:2rem auto;padding:0 1rem;color:#333}
+code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4;padding:1rem;border-radius:6px;overflow-x:auto}</style></head>
+<body><h1>plan-present</h1>
+<p>No documents registered yet.</p>
+<p>Register a markdown file with:</p>
+<pre><code>curl -X POST ${tailscaleUrl}/open \\
+  -H 'Content-Type: application/json' \\
+  -d '{"path": "/absolute/path/to/your/file.md"}'</code></pre>
+<p>Then visit the returned URL to edit it in the browser.</p>
+</body></html>`);
+    return;
+  }
+
+  const rows = docs
+    .map(
+      (d) =>
+        `<tr><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td></tr>`,
+    )
+    .join("\n");
+
+  res.send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>plan-present</title>
+<style>body{font-family:system-ui,sans-serif;max-width:700px;margin:2rem auto;padding:0 1rem;color:#333}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #eee}
+th{font-weight:600}a{color:#0066cc;text-decoration:none}a:hover{text-decoration:underline}
+code{background:#f4f4f4;padding:2px 6px;border-radius:3px}</style></head>
+<body><h1>plan-present</h1>
+<p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
+<table><thead><tr><th>File</th><th>Slug</th><th>Registered</th></tr></thead>
+<tbody>${rows}</tbody></table>
+</body></html>`);
+});
+
 // SPA serving for /doc/:slug routes
 const clientDistDir = path.resolve(__dirname, "../../dist/client");
 

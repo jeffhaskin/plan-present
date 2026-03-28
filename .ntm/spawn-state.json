@@ -1,0 +1,33 @@
+{
+  "batch_id": "spawn-20260328-005421-fbb8d5ea",
+  "started_at": "2026-03-28T00:54:21.261400896+01:00",
+  "stagger_seconds": 120,
+  "total_agents": 3,
+  "prompts": [
+    {
+      "pane": "plan-present__cod_1",
+      "pane_id": "%71",
+      "order": 1,
+      "scheduled": "2026-03-28T00:54:27.425819296+01:00",
+      "sent": true,
+      "sent_at": "2026-03-28T00:54:31.228245881+01:00"
+    },
+    {
+      "pane": "plan-present__cod_2",
+      "pane_id": "%72",
+      "order": 2,
+      "scheduled": "2026-03-28T00:56:27.566260609+01:00",
+      "sent": true,
+      "sent_at": "2026-03-28T00:56:31.389891386+01:00"
+    },
+    {
+      "pane": "plan-present__cod_3",
+      "pane_id": "%73",
+      "order": 3,
+      "scheduled": "2026-03-28T00:58:27.717371298+01:00",
+      "sent": true,
+      "sent_at": "2026-03-28T00:58:31.523822997+01:00"
+    }
+  ],
+  "completed_at": "2026-03-28T00:58:31.528857653+01:00"
+}
