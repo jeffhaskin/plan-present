@@ -235,10 +235,16 @@ if (inputTables[1]) {
 
 const codeBlockIndex = output.indexOf("```bash");
 const headingAfterCodeIndex = output.indexOf("### 4.1 Heading After Code Block");
+const headingAfterCodeOk = codeBlockIndex !== -1 && headingAfterCodeIndex > codeBlockIndex;
 checks.push({
   name: "Heading after code block",
-  status: codeBlockIndex !== -1 && headingAfterCodeIndex > codeBlockIndex ? "PASS" : "FAIL",
-  detail: codeBlockIndex === -1 ? "Missing code block." : "Heading not found after code block."
+  status: headingAfterCodeOk ? "PASS" : "FAIL",
+  ...(headingAfterCodeOk
+    ? {}
+    : {
+        detail:
+          codeBlockIndex === -1 ? "Missing code block." : "Heading not found after code block."
+      })
 });
 
 const summary = checks.reduce(
