@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
@@ -110,24 +110,52 @@ export default function Editor({ slug }: { slug: string }) {
         }}
       >
         <span>{fileName}</span>
-        <span
-          style={{
-            fontSize: "12px",
-            color:
-              autosave.status === "error" || autosave.status === "conflict"
-                ? "#cc3300"
-                : autosave.status === "saved"
-                  ? "#339933"
-                  : "#999",
-          }}
-        >
-          {autosave.message}
-        </span>
       </header>
       <EditorContent
         editor={editor}
         style={{ flex: 1, overflow: "auto" }}
       />
+      <SaveIndicator status={autosave.status} message={autosave.message} />
     </div>
   );
+}
+
+function SaveIndicator({ status, message }: { status: string; message: string }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (status === "idle") return;
+    setVisible(true);
+
+    if (status === "saved") {
+      const timer = setTimeout(() => setVisible(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [status, message]);
+
+  if (!visible || status === "idle") return null;
+
+  const colorMap: Record<string, string> = {
+    saving: "#999",
+    saved: "#339933",
+    conflict: "#cc7700",
+    error: "#cc3300",
+  };
+
+  const style: CSSProperties = {
+    position: "fixed",
+    bottom: "16px",
+    right: "16px",
+    padding: "6px 12px",
+    borderRadius: "4px",
+    fontSize: "13px",
+    fontFamily: "system-ui, sans-serif",
+    color: "#fff",
+    background: colorMap[status] ?? "#999",
+    zIndex: 1000,
+    transition: "opacity 0.3s",
+    opacity: visible ? 1 : 0,
+  };
+
+  return <div style={style}>{message}</div>;
 }

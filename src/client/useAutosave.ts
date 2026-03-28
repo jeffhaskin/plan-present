@@ -23,6 +23,7 @@ export function useAutosave(
     lastSavedAt: null,
   });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dirtyRef = useRef(false);
 
   const save = useCallback(async () => {
     if (!editor) return;
@@ -49,6 +50,8 @@ export function useAutosave(
 
       const data: SaveResponse = await res.json();
       baseMtimeRef.current = data.mtime;
+
+      dirtyRef.current = false;
 
       if (data.conflict) {
         setState({
@@ -79,6 +82,7 @@ export function useAutosave(
     if (!editor) return;
 
     const handler = () => {
+      dirtyRef.current = true;
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(save, DEBOUNCE_MS);
     };
@@ -90,6 +94,25 @@ export function useAutosave(
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [editor, save]);
+
+  // beforeunload: fire sendBeacon to save unsaved changes on page close
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleUnload = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+
+      const content = (editor.storage.markdown as any).getMarkdown();
+      const payload = JSON.stringify({ content, baseMtime: baseMtimeRef.current });
+      navigator.sendBeacon(`/api/doc/${slug}`, new Blob([payload], { type: "application/json" }));
+
+      e.preventDefault();
+      e.returnValue = "You have unsaved changes.";
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [editor, slug, baseMtimeRef]);
 
   return state;
 }
