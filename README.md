@@ -1,3 +1,5 @@
+![Screenshot](/images/screenshot.png)
+
 # plan-present
 
 A WYSIWYG Markdown editor and MCP server for remote development workflows. When AI assistants generate Markdown plans on a VPS, this tool lets you view and edit them in a rich browser interface while keeping the source `.md` file on disk.
