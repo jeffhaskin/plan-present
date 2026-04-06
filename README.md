@@ -4,16 +4,16 @@
 
 A WYSIWYG Markdown editor and MCP server for remote development workflows. When AI assistants generate Markdown plans on a VPS, this tool lets you view and edit them in a rich browser interface while keeping the source `.md` file on disk.
 
-**Core workflow:** AI runs a curl command to register a file path &rarr; server returns a URL &rarr; you open the URL in a browser and edit with full formatting &rarr; autosave keeps the disk file in sync.
+**Core workflow:** AI runs a curl command to register a file path → server returns a URL → you open the URL in a browser and edit with full formatting → autosave keeps the disk file in sync. 
 
 ## Features
 
-- **Rich editor** &mdash; Tiptap-based single-surface editor (like Obsidian) with headings, lists, tables, task lists, code blocks with syntax highlighting
-- **Read-only by default** &mdash; documents open locked to prevent accidental edits; one click to unlock
-- **Autosave with conflict detection** &mdash; debounced saves to disk, mtime-based conflict detection with automatic backup of external changes
-- **Document registry** &mdash; slug-based URLs with deduplication
-- **Tailscale networking** &mdash; auto-discovers hostname, serves URLs accessible only via your tailnet
-- **REST API** &mdash; `POST /open`, `GET/PUT/DELETE /api/doc/:slug`, `GET /api/docs`
+- **Rich editor** — Tiptap-based single-surface editor (like Obsidian) with headings, lists, tables, task lists, code blocks with syntax highlighting
+- **Read-only by default** — documents open locked to prevent accidental edits; one click to unlock
+- **Autosave with conflict detection** — debounced saves to disk, mtime-based conflict detection with automatic backup of external changes
+- **Document registry** — slug-based URLs with deduplication
+- **Tailscale networking** — auto-discovers hostname, serves URLs accessible only via your tailnet
+- **REST API** — `POST /open`, `GET/PUT/DELETE /api/doc/:slug`, `GET /api/docs`
 
 ## Tech Stack
 
@@ -25,9 +25,9 @@ A WYSIWYG Markdown editor and MCP server for remote development workflows. When 
 
 ### Prerequisites
 
-- **Node.js** &ge; 18
+- **Node.js** >= 18
 - **npm**
-- **Tailscale** &mdash; the server binds to `0.0.0.0:7979` but constructs URLs using your Tailscale hostname. You must be connected to a tailnet.
+- **Tailscale** — the server constructs editor URLs using your Tailscale hostname. Both the machine running the server and the machine where you open the browser must be on the **same Tailscale account (tailnet)**. This applies even if the server and browser are on the same machine — Tailscale must still be installed and connected because the server uses the Tailscale hostname to generate URLs.
 
 ### Install & Build
 
@@ -48,7 +48,7 @@ npm run dev
 npm start
 ```
 
-> **Note:** `npm run dev` uses `tsx watch` to auto-restart the Express server when server-side TypeScript changes. However, it does **not** run a Vite dev server &mdash; the client is always served from the `dist/client/` build output. If you change client code, you must re-run `npm run build` for changes to take effect.
+> **Note:** `npm run dev` uses `tsx watch` to auto-restart the Express server when server-side TypeScript changes. However, it does **not** run a Vite dev server — the client is always served from the `dist/client/` build output. If you change client code, you must re-run `npm run build` for changes to take effect.
 
 ### Tests
 
@@ -118,7 +118,7 @@ curl -s -X DELETE http://<tailscale-host>:7979/api/doc/<slug>
 \```
 ```
 
-That's it. Claude uses the REST API directly via curl &mdash; no MCP configuration, no extra dependencies, no environment variables to get wrong.
+That's it. Claude uses the REST API directly via curl — no MCP configuration, no extra dependencies, no environment variables to get wrong.
 
 > **Note:** An MCP server also exists at `src/mcp-server.ts` if you prefer tool-level integration, but curl via CLAUDE.md is simpler and more reliable in practice.
 
@@ -166,14 +166,16 @@ The `npm run build` step is **not optional** — it compiles the TypeScript serv
 
 ## REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/open` | Register a document (`{"path": "/abs/path.md"}`) |
-| `GET` | `/api/docs` | List all registered documents |
-| `GET` | `/api/doc/:slug` | Load document content |
-| `PUT` | `/api/doc/:slug` | Save document (with conflict detection) |
-| `DELETE` | `/api/doc/:slug` | Unregister a document |
-| `GET` | `/health` | Server health check |
+
+| Method   | Endpoint         | Description                                      |
+| -------- | ---------------- | ------------------------------------------------ |
+| `POST`   | `/open`          | Register a document (`{"path": "/abs/path.md"}`) |
+| `GET`    | `/api/docs`      | List all registered documents                    |
+| `GET`    | `/api/doc/:slug` | Load document content                            |
+| `PUT`    | `/api/doc/:slug` | Save document (with conflict detection)          |
+| `DELETE` | `/api/doc/:slug` | Unregister a document                            |
+| `GET`    | `/health`        | Server health check                              |
+
 
 ## License
 
