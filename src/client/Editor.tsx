@@ -27,6 +27,7 @@ export default function Editor({ slug }: { slug: string }) {
   const [error, setError] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
   const [contentWidthRem, setContentWidthRem] = useState(DEFAULT_CONTENT_WIDTH_REM);
+  const [readOnly, setReadOnly] = useState(true);
 
   const editor = useEditor({
     extensions: [
@@ -41,9 +42,16 @@ export default function Editor({ slug }: { slug: string }) {
       Markdown,
     ],
     content: "",
+    editable: false,
   });
 
   const autosave = useAutosave(editor, slug, baseMtimeRef);
+
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(!readOnly);
+    }
+  }, [editor, readOnly]);
 
   useEffect(() => {
     const savedWidth = window.localStorage.getItem(CONTENT_WIDTH_STORAGE_KEY);
@@ -171,11 +179,21 @@ export default function Editor({ slug }: { slug: string }) {
           alignItems: "center",
         }}
       >
-        <span>{fileName}</span>
+        <span>
+          {fileName}
+          {readOnly && <span className="read-only-badge">Read-only</span>}
+        </span>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           {closeError && (
             <span style={{ color: "#cc3300", fontSize: "13px" }}>{closeError}</span>
           )}
+          <button
+            className={readOnly ? "btn-toggle-edit" : "btn-toggle-edit btn-toggle-edit--active"}
+            onClick={() => setReadOnly((v) => !v)}
+            title={readOnly ? "Enable editing" : "Lock to read-only"}
+          >
+            {readOnly ? "Edit" : "Editing"}
+          </button>
           <button
             className="btn-done"
             onClick={handleSaveAndClose}
