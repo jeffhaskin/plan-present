@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "sprint_name": "improvement-suggestions",
+  "sprint_path": "/data/projects/plan-present/sprints/open/.staging",
+  "current_stage": "generate_plans",
+  "created_at": "2026-03-31T04:25:31.902633+00:00",
+  "updated_at": "2026-03-31T04:28:35.116198+00:00",
+  "completed_stages": [
+    "capture_spec",
+    "resolve_sprint",
+    "clarify_spec"
+  ],
+  "spec_text": "The point of this code base is to facilitate the AI powered planning process on a VPS. I have Claude Code, Codex and other agentic coding CLIs installed on my virtual private server. Because it's a virtual private server that runs in headless mode, there is no desktop environment and I cannot open the markdown implementation plans that Claude or Codex has for me. Because of this, I created this code base. This code base allows Claude or Codex or Gen and I or whoever to give me a URL that I can use to locally open in a browser the markdown implementation plan the AI wrote and I can edit it in that browser as well where it is being rendered with the markdown rendering to be scannable and readable and aesthetically consumable. I'd like you to make three highly targeted, very high value improvement suggestions to this repo in order to facilitate that process. Of course, after you have familiarized yourself with the existing state of the code base.",
+  "spec_created_at": "2026-03-31T04:25:39.891297+00:00",
+  "spec_path": "/data/projects/plan-present/sprints/open/improvement-suggestions/original_user_spec.md",
+  "classification": {
+    "mode": "new_sprint",
+    "sprint_name": "improvement-suggestions",
+    "sprint_path": "/data/projects/plan-present/sprints/open/improvement-suggestions",
+    "reasoning": "The user is asking for high-value improvement suggestions to the existing plan-present codebase. This is not related to the existing 'initial' sprint (which is stalled at capture_spec), nor is it a new project. It's a new sprint focused on analyzing the codebase and proposing targeted improvements."
+  },
+  "questions": {
+    "count": 0,
+    "answered": 0
+  }
+}

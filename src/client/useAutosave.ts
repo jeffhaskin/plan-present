@@ -10,7 +10,7 @@ export interface AutosaveStatus {
 }
 
 export interface AutosaveState extends AutosaveStatus {
-  save: () => Promise<void>;
+  save: () => Promise<boolean>;
 }
 
 const DEBOUNCE_MS = 2000;
@@ -29,13 +29,17 @@ export function useAutosave(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
 
-  const save = useCallback(async () => {
-    if (!editor) return;
+  const save = useCallback(async (): Promise<boolean> => {
+    if (!editor) {
+      setState((s) => ({ ...s, status: "error", isSaving: false, message: "Editor not ready" }));
+      return false;
+    }
 
-    const content = (editor.storage.markdown as any).getMarkdown();
     setState((s) => ({ ...s, status: "saving", isSaving: true, message: "Saving..." }));
 
     try {
+      const content = (editor as any).getMarkdown();
+
       const res = await fetch(`/api/doc/${slug}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -49,7 +53,7 @@ export function useAutosave(
           isSaving: false,
           message: `Save failed (${res.status})`,
         }));
-        return;
+        return false;
       }
 
       const data: SaveResponse = await res.json();
@@ -72,13 +76,16 @@ export function useAutosave(
           lastSavedAt: new Date(),
         });
       }
-    } catch {
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
       setState((s) => ({
         ...s,
         status: "error",
         isSaving: false,
-        message: "Network error — will retry on next edit",
+        message: `Save error: ${msg}`,
       }));
+      return false;
     }
   }, [editor, slug, baseMtimeRef]);
 
@@ -106,7 +113,7 @@ export function useAutosave(
     const handleUnload = (e: BeforeUnloadEvent) => {
       if (!dirtyRef.current) return;
 
-      const content = (editor.storage.markdown as any).getMarkdown();
+      const content = (editor as any).getMarkdown();
       const payload = JSON.stringify({ content, baseMtime: baseMtimeRef.current });
       navigator.sendBeacon(`/api/doc/${slug}`, new Blob([payload], { type: "application/json" }));
 

@@ -1,0 +1,10 @@
+{"ts": "2026-03-31T04:25:31.925758+00:00", "stage": "capture_spec", "event": "stage_started"}
+{"ts": "2026-03-31T04:25:39.891342+00:00", "stage": "capture_spec", "event": "spec_captured", "length": 957}
+{"ts": "2026-03-31T04:25:39.932633+00:00", "stage": "capture_spec", "event": "stage_completed"}
+{"ts": "2026-03-31T04:25:39.939250+00:00", "stage": "resolve_sprint", "event": "stage_started"}
+{"ts": "2026-03-31T04:26:00.926477+00:00", "stage": "resolve_sprint", "event": "classified", "mode": "new_sprint", "sprint_name": "improvement-suggestions", "sprint_path": "/data/projects/plan-present/sprints/open/improvement-suggestions"}
+{"ts": "2026-03-31T04:26:00.934136+00:00", "stage": "resolve_sprint", "event": "stage_completed"}
+{"ts": "2026-03-31T04:26:00.942950+00:00", "stage": "clarify_spec", "event": "stage_started"}
+{"ts": "2026-03-31T04:28:35.096847+00:00", "stage": "clarify_spec", "event": "qa_appended", "count": 0}
+{"ts": "2026-03-31T04:28:35.108347+00:00", "stage": "clarify_spec", "event": "stage_completed"}
+{"ts": "2026-03-31T04:28:35.115938+00:00", "stage": "generate_plans", "event": "stage_started"}

@@ -15,6 +15,10 @@ import type { DocResponse } from "../shared/types";
 import "./style.css";
 
 const lowlight = createLowlight(common);
+const DEFAULT_CONTENT_WIDTH_REM = 48;
+const MIN_CONTENT_WIDTH_REM = 36;
+const MAX_CONTENT_WIDTH_REM = 80;
+const CONTENT_WIDTH_STORAGE_KEY = "plan-present-content-width-rem";
 
 export default function Editor({ slug }: { slug: string }) {
   const [fileName, setFileName] = useState("");
@@ -22,6 +26,7 @@ export default function Editor({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
+  const [contentWidthRem, setContentWidthRem] = useState(DEFAULT_CONTENT_WIDTH_REM);
 
   const editor = useEditor({
     extensions: [
@@ -39,6 +44,21 @@ export default function Editor({ slug }: { slug: string }) {
   });
 
   const autosave = useAutosave(editor, slug, baseMtimeRef);
+
+  useEffect(() => {
+    const savedWidth = window.localStorage.getItem(CONTENT_WIDTH_STORAGE_KEY);
+    if (!savedWidth) return;
+
+    const parsed = Number(savedWidth);
+    if (Number.isFinite(parsed)) {
+      const clamped = Math.min(MAX_CONTENT_WIDTH_REM, Math.max(MIN_CONTENT_WIDTH_REM, parsed));
+      setContentWidthRem(clamped);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(CONTENT_WIDTH_STORAGE_KEY, String(contentWidthRem));
+  }, [contentWidthRem]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,20 +99,33 @@ export default function Editor({ slug }: { slug: string }) {
   }, [slug, editor]);
 
   const [closing, setClosing] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
 
-  function handleSaveAndClose() {
+  async function handleSaveAndClose() {
     if (closing) return;
     setClosing(true);
+    setCloseError(null);
 
-    const doClose = () => {
-      fetch(`/api/doc/${slug}`, { method: "DELETE" })
-        .finally(() => setClosed(true));
-    };
+    let saved: boolean;
+    try {
+      saved = await autosave.save();
+    } catch {
+      saved = false;
+    }
+
+    if (!saved) {
+      setClosing(false);
+      setCloseError("Save failed — your changes have NOT been lost. Please try again.");
+      return;
+    }
 
     try {
-      autosave.save().then(doClose).catch(doClose);
-    } catch {
-      doClose();
+      const res = await fetch(`/api/doc/${slug}`, { method: "DELETE" });
+      if (!res.ok) {
+        setCloseError("Document saved, but failed to unregister. You can close this tab safely.");
+      }
+    } finally {
+      setClosed(true);
     }
   }
 
@@ -139,18 +172,42 @@ export default function Editor({ slug }: { slug: string }) {
         }}
       >
         <span>{fileName}</span>
-        <button
-          className="btn-done"
-          onClick={handleSaveAndClose}
-          disabled={closing || autosave.isSaving}
-        >
-          {closing ? "Closing..." : "Save & Done"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {closeError && (
+            <span style={{ color: "#cc3300", fontSize: "13px" }}>{closeError}</span>
+          )}
+          <button
+            className="btn-done"
+            onClick={handleSaveAndClose}
+            disabled={closing || autosave.isSaving}
+          >
+            {closing ? "Saving..." : "Save & Done"}
+          </button>
+        </div>
       </header>
       <EditorContent
         editor={editor}
-        style={{ flex: 1, overflow: "auto" }}
+        style={
+          {
+            flex: 1,
+            overflow: "auto",
+            "--content-max-width": `${contentWidthRem}rem`,
+          } as CSSProperties
+        }
       />
+      <div className="width-slider">
+        <label htmlFor="content-width-slider">Width</label>
+        <input
+          id="content-width-slider"
+          type="range"
+          min={MIN_CONTENT_WIDTH_REM}
+          max={MAX_CONTENT_WIDTH_REM}
+          step={1}
+          value={contentWidthRem}
+          onChange={(e) => setContentWidthRem(Number(e.target.value))}
+        />
+        <output htmlFor="content-width-slider">{contentWidthRem}rem</output>
+      </div>
       <SaveIndicator status={autosave.status} message={autosave.message} />
     </div>
   );
