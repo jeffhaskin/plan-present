@@ -2,20 +2,20 @@
 
 A WYSIWYG Markdown editor and MCP server for remote development workflows. When AI assistants generate Markdown plans on a VPS, this tool lets you view and edit them in a rich browser interface while keeping the source `.md` file on disk.
 
-**Core workflow:** AI passes a file path to an MCP tool &rarr; server registers the document and returns a URL &rarr; you open the URL in a browser and edit with full formatting &rarr; autosave keeps the disk file in sync.
+**Core workflow:** AI runs a curl command to register a file path &rarr; server returns a URL &rarr; you open the URL in a browser and edit with full formatting &rarr; autosave keeps the disk file in sync.
 
 ## Features
 
 - **Rich editor** &mdash; Tiptap-based single-surface editor (like Obsidian) with headings, lists, tables, task lists, code blocks with syntax highlighting
-- **MCP integration** &mdash; `open_document`, `list_documents`, `close_document` tools for AI assistants
+- **Read-only by default** &mdash; documents open locked to prevent accidental edits; one click to unlock
 - **Autosave with conflict detection** &mdash; debounced saves to disk, mtime-based conflict detection with automatic backup of external changes
-- **Document registry** &mdash; SQLite-backed registry with slug-based URLs and deduplication
+- **Document registry** &mdash; slug-based URLs with deduplication
 - **Tailscale networking** &mdash; auto-discovers hostname, serves URLs accessible only via your tailnet
 - **REST API** &mdash; `POST /open`, `GET/PUT/DELETE /api/doc/:slug`, `GET /api/docs`
 
 ## Tech Stack
 
-- **Backend:** Express 5, TypeScript, SQLite3, MCP SDK
+- **Backend:** Express 5, TypeScript
 - **Frontend:** React 19, Vite, Tiptap 3, Lowlight (syntax highlighting)
 - **Infrastructure:** Tailscale, port 7979
 
@@ -56,12 +56,9 @@ npm test
 
 ## Architecture
 
-plan-present has two components:
+The Express web server (port 7979) serves both the editor UI and the REST API. It always serves the React client from `dist/client/` (the Vite build output), so `npm run build` is a prerequisite.
 
-1. **Web server** (Express, port 7979) &mdash; serves the editor UI and REST API. This must be running for anything to work. The server always serves the React client from `dist/client/` (the Vite build output), so `npm run build` is a prerequisite.
-2. **MCP server** (`src/mcp-server.ts`) &mdash; an optional thin stdio-based MCP wrapper that calls the web server's REST API. Alternative to using curl via CLAUDE.md.
-
-The MCP server does not serve files or run the editor itself &mdash; it's a client of the web server.
+AI assistants interact with the server via curl against the REST API. An optional MCP server (`src/mcp-server.ts`) also exists but the curl approach is simpler and more reliable.
 
 ## Setup
 
@@ -91,12 +88,10 @@ You should see `{"ok":true, ...}`.
 
 ### 3. Connect to Claude Code
 
-#### Option A: CLAUDE.md curl instruction (recommended)
-
-Add this to your `~/.claude/CLAUDE.md` (or project-level `CLAUDE.md`), replacing `<tailscale-host>` with your machine's Tailscale hostname:
+Add the following to your `~/.claude/CLAUDE.md` (or project-level `CLAUDE.md`), replacing `<tailscale-host>` with your machine's Tailscale hostname:
 
 ```markdown
-## plan-present &mdash; Open a Markdown File for Browser Editing
+## plan-present — Open a Markdown File for Browser Editing
 
 When you want to open a markdown file for visual editing in the browser, register it with the plan-present server:
 
@@ -106,36 +101,24 @@ curl -s -X POST http://<tailscale-host>:7979/open \
   -d '{"path": "/absolute/path/to/file.md"}'
 \```
 
-Returns `{"url":"...","slug":"..."}` &mdash; open the URL in a browser to edit.
+Returns `{"url":"...","slug":"..."}` — open the URL in a browser to edit.
+
+To list all open documents:
+
+\```bash
+curl -s http://<tailscale-host>:7979/api/docs
+\```
+
+To close a document (unregister it, does not delete the file):
+
+\```bash
+curl -s -X DELETE http://<tailscale-host>:7979/api/doc/<slug>
+\```
 ```
 
-This is the simplest integration. Claude uses the REST API directly via curl. No MCP configuration needed.
+That's it. Claude uses the REST API directly via curl &mdash; no MCP configuration, no extra dependencies, no environment variables to get wrong.
 
-#### Option B: MCP server
-
-The MCP server (`src/mcp-server.ts`) is a thin stdio-based wrapper that calls the web server's REST API. Add it to your Claude Code settings (`~/.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "plan-present": {
-      "command": "npx",
-      "args": [
-        "tsx",
-        "/path/to/plan-present/src/mcp-server.ts"
-      ],
-      "env": {
-        "PLAN_PRESENT_URL": "http://<tailscale-host>:7979"
-      },
-      "description": "Open markdown files for WYSIWYG browser editing"
-    }
-  }
-}
-```
-
-**Important:** You must set `PLAN_PRESENT_URL` in the `env` block to your machine's Tailscale hostname. The default (`http://flywheel.tail2a835b.ts.net:7979`) will not work on other machines.
-
-This registers `open_document`, `list_documents`, and `close_document` as MCP tools.
+> **Note:** An MCP server also exists at `src/mcp-server.ts` if you prefer tool-level integration, but curl via CLAUDE.md is simpler and more reliable in practice.
 
 ## Updating
 
@@ -178,14 +161,6 @@ sleep 2 && curl -s http://localhost:7979/health
 ```
 
 The `npm run build` step is **not optional** — it compiles the TypeScript server and bundles the React frontend. Skipping it means the editor UI will serve stale assets or 404.
-
-## MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `open_document(path)` | Register a `.md` file and get a browser URL for editing |
-| `list_documents()` | List all registered documents with their URLs |
-| `close_document(slug)` | Unregister a document (does not delete the file on disk) |
 
 ## REST API
 
