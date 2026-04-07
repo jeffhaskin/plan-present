@@ -1,3 +1,5 @@
+![Screenshot](/images/screenshot.png)
+
 # plan-present
 
 A WYSIWYG Markdown editor and MCP server for remote development workflows. When AI assistants generate Markdown plans on a VPS, this tool lets you view and edit them in a rich browser interface while keeping the source `.md` file on disk.
@@ -25,7 +27,7 @@ A WYSIWYG Markdown editor and MCP server for remote development workflows. When 
 
 - **Node.js** >= 18
 - **npm**
-- **Tailscale** — the server binds to `0.0.0.0:7979` but constructs URLs using your Tailscale hostname. You must be connected to a tailnet.
+- **Tailscale** — the server constructs editor URLs using your Tailscale hostname. Both the machine running the server and the machine where you open the browser must be on the **same Tailscale account (tailnet)**. This applies even if the server and browser are on the same machine — Tailscale must still be installed and connected because the server uses the Tailscale hostname to generate URLs.
 
 ### Install & Build
 
