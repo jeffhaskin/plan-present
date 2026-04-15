@@ -223,7 +223,8 @@ body {
   background: #dceddc;
 }
 
-/* Save & Done button */
+/* Header buttons — shared base */
+.btn-save,
 .btn-done {
   padding: 8px 20px;
   font-size: 15px;
@@ -241,11 +242,13 @@ body {
   transition: background 0.1s;
 }
 
+.btn-save:active,
 .btn-done:active {
   background: #ddd;
   transform: scale(0.97);
 }
 
+.btn-save:disabled,
 .btn-done:disabled {
   opacity: 0.5;
   cursor: default;

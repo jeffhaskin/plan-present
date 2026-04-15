@@ -43,6 +43,10 @@ export function loadFromDisk(): number {
       byPath.set(entry.absolutePath, entry.slug);
       loaded++;
     }
+    // Persist the pruned list so stale entries are removed from disk
+    if (loaded < entries.length) {
+      persistToDisk();
+    }
     return loaded;
   } catch {
     return 0;

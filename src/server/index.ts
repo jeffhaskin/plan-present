@@ -101,7 +101,8 @@ app.get("/api/doc/:slug", (req, res) => {
       fileName: entry.originalBaseName,
     });
   } catch {
-    res.status(404).json({ error: "File no longer exists on disk" });
+    removeDocument(req.params.slug);
+    res.status(404).json({ error: "File no longer exists on disk", removed: true });
   }
 });
 
@@ -219,3 +220,10 @@ server.on("error", (error: NodeJS.ErrnoException) => {
 
   throw error;
 });
+
+// Graceful shutdown — release the port before exiting so tsx watch restarts cleanly
+function shutdown() {
+  server.close(() => process.exit(0));
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

@@ -75,7 +75,12 @@ export default function Editor({ slug }: { slug: string }) {
       try {
         const res = await fetch(`/api/doc/${slug}`);
         if (!res.ok) {
-          setError(res.status === 404 ? "Document not found" : `Error ${res.status}`);
+          if (res.status === 404) {
+            // File gone — server already removed it from registry; go back to list
+            window.location.href = "/";
+            return;
+          }
+          setError(`Error ${res.status}`);
           setLoading(false);
           return;
         }
@@ -107,12 +112,16 @@ export default function Editor({ slug }: { slug: string }) {
   }, [slug, editor]);
 
   const [closing, setClosing] = useState(false);
-  const [closeError, setCloseError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  async function handleSaveAndClose() {
+  function handleHome() {
+    window.location.href = "/";
+  }
+
+  async function handleDeregister() {
     if (closing) return;
     setClosing(true);
-    setCloseError(null);
+    setActionError(null);
 
     let saved: boolean;
     try {
@@ -123,17 +132,17 @@ export default function Editor({ slug }: { slug: string }) {
 
     if (!saved) {
       setClosing(false);
-      setCloseError("Save failed — your changes have NOT been lost. Please try again.");
+      setActionError("Save failed — your changes have NOT been lost. Please try again.");
       return;
     }
 
     try {
       const res = await fetch(`/api/doc/${slug}`, { method: "DELETE" });
       if (!res.ok) {
-        setCloseError("Document saved, but failed to unregister. You can close this tab safely.");
+        setActionError("Document saved, but failed to unregister.");
       }
     } finally {
-      setClosed(true);
+      window.location.href = "/";
     }
   }
 
@@ -184,8 +193,8 @@ export default function Editor({ slug }: { slug: string }) {
           {readOnly && <span className="read-only-badge">Read-only</span>}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {closeError && (
-            <span style={{ color: "#cc3300", fontSize: "13px" }}>{closeError}</span>
+          {actionError && (
+            <span style={{ color: "#cc3300", fontSize: "13px" }}>{actionError}</span>
           )}
           <button
             className={readOnly ? "btn-toggle-edit" : "btn-toggle-edit btn-toggle-edit--active"}
@@ -195,11 +204,17 @@ export default function Editor({ slug }: { slug: string }) {
             {readOnly ? "Edit" : "Editing"}
           </button>
           <button
+            className="btn-save"
+            onClick={handleHome}
+          >
+            Home
+          </button>
+          <button
             className="btn-done"
-            onClick={handleSaveAndClose}
+            onClick={handleDeregister}
             disabled={closing || autosave.isSaving}
           >
-            {closing ? "Saving..." : "Save & Done"}
+            {closing ? "Closing..." : "Deregister"}
           </button>
         </div>
       </header>
