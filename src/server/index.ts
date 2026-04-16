@@ -140,6 +140,26 @@ app.delete("/api/doc/:slug", (req, res) => {
   res.json({ removed: true });
 });
 
+// DELETE /api/doc/:slug/file — unregister and delete the file from disk
+app.delete("/api/doc/:slug/file", (req, res) => {
+  const entry = getDocument(req.params.slug);
+  if (!entry) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  const { absolutePath } = entry;
+  removeDocument(req.params.slug);
+  try {
+    fs.unlinkSync(absolutePath);
+  } catch (err: any) {
+    if (err.code !== "ENOENT") {
+      res.status(500).json({ error: `Failed to delete file: ${err.message}` });
+      return;
+    }
+  }
+  res.json({ deleted: true });
+});
+
 // GET / — index page listing registered documents
 app.get("/", (_req, res) => {
   const docs = listDocuments();
@@ -164,7 +184,7 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4
   const rows = docs
     .map(
       (d) =>
-        `<tr><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td></tr>`,
+        `<tr><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
     )
     .join("\n");
 
@@ -174,24 +194,39 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4
 table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #eee}
 th{font-weight:600}a{color:#0066cc;text-decoration:none}a:hover{text-decoration:underline}
 code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
-#deregister-btn{background:#cc2222;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:0.85rem}
-#deregister-btn:hover{background:#aa1111}#deregister-btn:disabled{background:#aaa;cursor:not-allowed}</style></head>
+.action-btn{color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:0.85rem}
+#deregister-btn{background:#cc2222}#deregister-btn:hover{background:#aa1111}
+#delete-btn{background:#881111}#delete-btn:hover{background:#660000}
+.action-btn:disabled{background:#aaa!important;cursor:not-allowed}</style></head>
 <body><h1>plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
-<table><thead><tr><th>File</th><th>Slug</th><th>Registered</th><th style="text-align:center"><button id="deregister-btn" disabled>Deregister</button></th></tr></thead>
+<table><thead><tr><th>File</th><th>Slug</th><th>Registered</th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr></thead>
 <tbody>${rows}</tbody></table>
 <script>
-const btn = document.getElementById('deregister-btn');
-const checks = () => Array.from(document.querySelectorAll('.doc-check'));
+const deregBtn = document.getElementById('deregister-btn');
+const delBtn = document.getElementById('delete-btn');
+const docChecks = () => Array.from(document.querySelectorAll('.doc-check'));
+const fileChecks = () => Array.from(document.querySelectorAll('.file-check'));
 document.addEventListener('change', () => {
-  btn.disabled = !checks().some(c => c.checked);
+  deregBtn.disabled = !docChecks().some(c => c.checked);
+  delBtn.disabled = !fileChecks().some(c => c.checked);
 });
-btn.addEventListener('click', async () => {
-  const selected = checks().filter(c => c.checked).map(c => c.dataset.slug);
+deregBtn.addEventListener('click', async () => {
+  const selected = docChecks().filter(c => c.checked).map(c => c.dataset.slug);
   if (!selected.length) return;
-  btn.disabled = true;
-  btn.textContent = 'Deregistering\u2026';
+  deregBtn.disabled = true;
+  deregBtn.textContent = 'Deregistering\u2026';
   await Promise.all(selected.map(slug => fetch('/api/doc/' + slug, {method:'DELETE'})));
+  window.location.reload();
+});
+delBtn.addEventListener('click', async () => {
+  const selected = fileChecks().filter(c => c.checked).map(c => c.dataset.slug);
+  if (!selected.length) return;
+  const names = selected.map(slug => fileChecks().find(c => c.dataset.slug === slug)?.closest('tr')?.querySelector('a')?.textContent).join(', ');
+  if (!confirm('Permanently delete ' + selected.length + ' file(s) from disk?\\n\\n' + names)) return;
+  delBtn.disabled = true;
+  delBtn.textContent = 'Deleting\u2026';
+  await Promise.all(selected.map(slug => fetch('/api/doc/' + slug + '/file', {method:'DELETE'})));
   window.location.reload();
 });
 </script>
