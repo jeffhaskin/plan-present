@@ -219,7 +219,7 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4
   const rows = docs
     .map(
       (d) =>
-        `<tr><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td><code>${path.dirname(d.absolutePath)}</code></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
+        `<tr><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td class="dir"><code>${path.dirname(d.absolutePath)}</code></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
     )
     .join("\n");
 
@@ -233,7 +233,8 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
 #deregister-btn{background:#cc2222}#deregister-btn:hover{background:#aa1111}
 #delete-btn{background:#881111}#delete-btn:hover{background:#660000}
 .action-btn:disabled{background:#aaa!important;cursor:not-allowed}
-thead tr:last-child th{padding-top:4px;padding-bottom:6px;border-bottom:1px solid #eee}</style></head>
+thead tr:last-child th{padding-top:4px;padding-bottom:6px;border-bottom:1px solid #eee}
+td.dir{width:14ch;min-width:14ch;max-width:14ch;white-space:normal;word-break:break-all}</style></head>
 <body><h1>plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
