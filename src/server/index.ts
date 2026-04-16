@@ -74,6 +74,41 @@ app.post("/open", (req, res) => {
   }
 });
 
+// POST /open/dir — register all *.md files in a directory
+app.post("/open/dir", (req, res) => {
+  const { path: dirPath } = req.body;
+  if (!dirPath || typeof dirPath !== "string") {
+    res.status(400).json({ error: "path is required" });
+    return;
+  }
+  const absDir = path.isAbsolute(dirPath) ? dirPath : path.resolve(process.cwd(), dirPath);
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(absDir, { withFileTypes: true });
+  } catch (err: any) {
+    res.status(400).json({ error: `Cannot read directory: ${err.message}` });
+    return;
+  }
+  const mdFiles = entries
+    .filter((e) => e.isFile() && /\.md$/i.test(e.name))
+    .map((e) => path.join(absDir, e.name));
+  if (mdFiles.length === 0) {
+    res.json({ registered: [], skipped: [], message: "No .md files found" });
+    return;
+  }
+  const registered: { file: string; url: string; slug: string }[] = [];
+  const skipped: { file: string; error: string }[] = [];
+  for (const filePath of mdFiles) {
+    try {
+      const entry = registerDocument(filePath);
+      registered.push({ file: filePath, url: `http://${tailscaleHost}:${PORT}/doc/${entry.slug}`, slug: entry.slug });
+    } catch (err: any) {
+      skipped.push({ file: filePath, error: err.message });
+    }
+  }
+  res.json({ registered, skipped });
+});
+
 // GET /api/docs — list all registered documents
 app.get("/api/docs", (_req, res) => {
   const docs = listDocuments().map((entry) => ({
@@ -200,16 +235,25 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
 .action-btn:disabled{background:#aaa!important;cursor:not-allowed}</style></head>
 <body><h1>plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
-<table><thead><tr><th>File</th><th>Slug</th><th>Registered</th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr></thead>
+<table><thead><tr><th>File</th><th>Slug</th><th>Registered</th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"> <button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"> <button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr></thead>
 <tbody>${rows}</tbody></table>
 <script>
 const deregBtn = document.getElementById('deregister-btn');
 const delBtn = document.getElementById('delete-btn');
+const docAll = document.getElementById('doc-all');
+const fileAll = document.getElementById('file-all');
 const docChecks = () => Array.from(document.querySelectorAll('.doc-check'));
 const fileChecks = () => Array.from(document.querySelectorAll('.file-check'));
-document.addEventListener('change', () => {
+function syncState() {
   deregBtn.disabled = !docChecks().some(c => c.checked);
   delBtn.disabled = !fileChecks().some(c => c.checked);
+  docAll.checked = docChecks().length > 0 && docChecks().every(c => c.checked);
+  fileAll.checked = fileChecks().length > 0 && fileChecks().every(c => c.checked);
+}
+document.addEventListener('change', e => {
+  if (e.target === docAll) docChecks().forEach(c => c.checked = docAll.checked);
+  if (e.target === fileAll) fileChecks().forEach(c => c.checked = fileAll.checked);
+  syncState();
 });
 deregBtn.addEventListener('click', async () => {
   const selected = docChecks().filter(c => c.checked).map(c => c.dataset.slug);
