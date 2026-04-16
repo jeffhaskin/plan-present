@@ -219,7 +219,7 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4
   const rows = docs
     .map(
       (d) =>
-        `<tr><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td style="color:#666;font-size:0.85rem">${path.dirname(d.absolutePath)}</td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
+        `<tr><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td><code>${path.dirname(d.absolutePath)}</code></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
     )
     .join("\n");
 
