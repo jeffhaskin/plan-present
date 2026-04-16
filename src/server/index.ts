@@ -219,23 +219,27 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4
   const rows = docs
     .map(
       (d) =>
-        `<tr><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
+        `<tr><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td style="color:#666;font-size:0.85rem">${path.dirname(d.absolutePath)}</td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
     )
     .join("\n");
 
   res.send(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>plan-present</title>
-<style>body{font-family:system-ui,sans-serif;max-width:700px;margin:2rem auto;padding:0 1rem;color:#333}
+<style>body{font-family:system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#333}
 table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #eee}
 th{font-weight:600}a{color:#0066cc;text-decoration:none}a:hover{text-decoration:underline}
 code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
 .action-btn{color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:0.85rem}
 #deregister-btn{background:#cc2222}#deregister-btn:hover{background:#aa1111}
 #delete-btn{background:#881111}#delete-btn:hover{background:#660000}
-.action-btn:disabled{background:#aaa!important;cursor:not-allowed}</style></head>
+.action-btn:disabled{background:#aaa!important;cursor:not-allowed}
+thead tr:last-child th{padding-top:4px;padding-bottom:6px;border-bottom:1px solid #eee}</style></head>
 <body><h1>plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
-<table><thead><tr><th>File</th><th>Slug</th><th>Registered</th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"> <button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"> <button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr></thead>
+<table><thead>
+<tr><th>File</th><th>Directory</th><th>Slug</th><th>Registered</th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
+<tr><th></th><th></th><th></th><th></th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"></th></tr>
+</thead>
 <tbody>${rows}</tbody></table>
 <script>
 const deregBtn = document.getElementById('deregister-btn');
