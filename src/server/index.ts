@@ -206,7 +206,7 @@ app.delete("/api/doc/:slug/file", (req, res) => {
 
 // GET / — index page listing registered documents
 app.get("/", (_req, res) => {
-  const docs = listDocuments();
+  const docs = [...listDocuments()].sort((a, b) => b.registeredAt.localeCompare(a.registeredAt));
   const tailscaleUrl = `http://${tailscaleHost}:${PORT}`;
 
   if (docs.length === 0) {
@@ -249,7 +249,7 @@ td.dir{width:14ch;min-width:14ch;max-width:14ch;white-space:normal;word-break:br
 <body><h1>plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
-<tr><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Slug</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">⇅</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
+<tr><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Slug</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
 <tr><th></th><th></th><th></th><th></th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"></th></tr>
 </thead>
 <tbody>${rows}</tbody></table>
@@ -292,7 +292,7 @@ delBtn.addEventListener('click', async () => {
 // Sort
 const tbody = document.querySelector('tbody');
 const origRows = Array.from(tbody.rows);
-const sortState = {file: null, dir: null, reg: null};
+const sortState = {file: null, dir: null, reg: 'desc'};
 const ICONS = {null: '\u21c5', asc: '\u2191', desc: '\u2193'};
 function applySort(col, colIdx) {
   const first = col === 'reg' ? 'desc' : 'asc';

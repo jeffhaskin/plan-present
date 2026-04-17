@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Editor from "./Editor";
 
 function parseSlug(): string | null {
@@ -7,6 +8,10 @@ function parseSlug(): string | null {
 
 export default function App() {
   const slug = parseSlug();
+
+  useEffect(() => {
+    document.title = slug ? `pp | ${slug}` : "plan-present";
+  }, [slug]);
 
   if (!slug) {
     return (
