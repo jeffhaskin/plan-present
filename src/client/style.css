@@ -254,6 +254,37 @@ body {
   cursor: default;
 }
 
+.btn-delete {
+  padding: 8px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  border: 1px solid #a00;
+  border-radius: 6px;
+  background: #cc2222;
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.1s;
+}
+
+.btn-delete:hover {
+  background: #aa1111;
+}
+
+.btn-delete:active {
+  background: #881111;
+  transform: scale(0.97);
+}
+
+.btn-delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .width-slider {
   position: fixed;
   left: 50%;

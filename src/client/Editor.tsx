@@ -112,6 +112,7 @@ export default function Editor({ slug }: { slug: string }) {
   }, [slug, editor]);
 
   const [closing, setClosing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   function handleHome() {
@@ -141,6 +142,18 @@ export default function Editor({ slug }: { slug: string }) {
       if (!res.ok) {
         setActionError("Document saved, but failed to unregister.");
       }
+    } finally {
+      window.location.href = "/";
+    }
+  }
+
+  async function handleDelete() {
+    if (deleting) return;
+    if (!window.confirm(`Permanently delete "${fileName}" from disk?`)) return;
+    setDeleting(true);
+    setActionError(null);
+    try {
+      await fetch(`/api/doc/${slug}/file`, { method: "DELETE" });
     } finally {
       window.location.href = "/";
     }
@@ -212,9 +225,16 @@ export default function Editor({ slug }: { slug: string }) {
           <button
             className="btn-done"
             onClick={handleDeregister}
-            disabled={closing || autosave.isSaving}
+            disabled={closing || deleting || autosave.isSaving}
           >
             {closing ? "Closing..." : "Deregister"}
+          </button>
+          <button
+            className="btn-delete"
+            onClick={handleDelete}
+            disabled={closing || deleting || autosave.isSaving}
+          >
+            {deleting ? "Deleting..." : "Delete"}
           </button>
         </div>
       </header>
