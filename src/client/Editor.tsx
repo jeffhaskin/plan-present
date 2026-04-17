@@ -116,6 +116,29 @@ export default function Editor({ slug }: { slug: string }) {
   const [closing, setClosing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [plainMode, setPlainMode] = useState<"off" | "view" | "edit">("off");
+  const [plainText, setPlainText] = useState("");
+
+  function togglePlainView() {
+    if (!editor) return;
+    if (plainMode === "view") {
+      setPlainMode("off");
+      return;
+    }
+    setPlainText((editor as any).getMarkdown());
+    setPlainMode("view");
+  }
+
+  function togglePlainEdit() {
+    if (!editor) return;
+    if (plainMode === "edit") {
+      editor.commands.setContent(plainText, { emitUpdate: true, contentType: "markdown" });
+      setPlainMode("off");
+      return;
+    }
+    setPlainText((editor as any).getMarkdown());
+    setPlainMode("edit");
+  }
 
   function handleHome() {
     window.location.href = "/";
@@ -238,6 +261,22 @@ export default function Editor({ slug }: { slug: string }) {
           </button>
           <button
             className="btn-save"
+            onClick={togglePlainEdit}
+            disabled={!editor || plainMode === "view"}
+            title="Edit the document as raw markdown"
+          >
+            {plainMode === "edit" ? "Done editing" : "Edit as plain text"}
+          </button>
+          <button
+            className="btn-save"
+            onClick={togglePlainView}
+            disabled={!editor || plainMode === "edit"}
+            title="Render the document as plain-text markdown"
+          >
+            {plainMode === "view" ? "Show WYSIWYG" : "Show as plain text"}
+          </button>
+          <button
+            className="btn-save"
             onClick={handleHome}
           >
             Home
@@ -258,16 +297,41 @@ export default function Editor({ slug }: { slug: string }) {
           </button>
         </div>
       </header>
-      <EditorContent
-        editor={editor}
-        style={
-          {
+      {plainMode === "off" ? (
+        <EditorContent
+          editor={editor}
+          style={
+            {
+              flex: 1,
+              overflow: "auto",
+              "--content-max-width": `${contentWidthRem}rem`,
+            } as CSSProperties
+          }
+        />
+      ) : (
+        <textarea
+          value={plainText}
+          readOnly={plainMode === "view"}
+          onChange={(e) => setPlainText(e.target.value)}
+          spellCheck={false}
+          style={{
             flex: 1,
             overflow: "auto",
-            "--content-max-width": `${contentWidthRem}rem`,
-          } as CSSProperties
-        }
-      />
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "1rem",
+            border: "none",
+            outline: "none",
+            resize: "none",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            fontSize: "14px",
+            lineHeight: 1.5,
+            background: plainMode === "view" ? "#fafafa" : "#fff",
+            color: "#222",
+            whiteSpace: "pre",
+          }}
+        />
+      )}
       <div className="width-slider">
         <label htmlFor="content-width-slider">Width</label>
         <input
