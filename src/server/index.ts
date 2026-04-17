@@ -7,6 +7,7 @@ import { tailscaleOnly } from "./network";
 import {
   registerDocument,
   getDocument,
+  getDocumentByPath,
   listDocuments,
   removeDocument,
   loadFromDisk,
@@ -97,8 +98,15 @@ app.post("/open/dir", (req, res) => {
     return;
   }
   const registered: { file: string; url: string; slug: string }[] = [];
+  const alreadyRegistered: { file: string; url: string; slug: string }[] = [];
   const skipped: { file: string; error: string }[] = [];
   for (const filePath of mdFiles) {
+    const abs = path.resolve(filePath);
+    const existing = getDocumentByPath(abs);
+    if (existing) {
+      alreadyRegistered.push({ file: filePath, url: `http://${tailscaleHost}:${PORT}/doc/${existing.slug}`, slug: existing.slug });
+      continue;
+    }
     try {
       const entry = registerDocument(filePath);
       registered.push({ file: filePath, url: `http://${tailscaleHost}:${PORT}/doc/${entry.slug}`, slug: entry.slug });
@@ -106,7 +114,7 @@ app.post("/open/dir", (req, res) => {
       skipped.push({ file: filePath, error: err.message });
     }
   }
-  res.json({ registered, skipped });
+  res.json({ registered, alreadyRegistered, skipped });
 });
 
 // GET /api/docs — list all registered documents
@@ -234,11 +242,13 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
 #delete-btn{background:#881111}#delete-btn:hover{background:#660000}
 .action-btn:disabled{background:#aaa!important;cursor:not-allowed}
 thead tr:last-child th{padding-top:4px;padding-bottom:6px;border-bottom:1px solid #eee}
-td.dir{width:14ch;min-width:14ch;max-width:14ch;white-space:normal;word-break:break-all}</style></head>
+td.dir{width:14ch;min-width:14ch;max-width:14ch;white-space:normal;word-break:break-all}
+.sort-btn{background:none;border:none;cursor:pointer;font-size:0.8rem;padding:0 3px;color:#999;vertical-align:middle}
+.sort-btn:hover{color:#333}</style></head>
 <body><h1>plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
-<tr><th>File</th><th>Directory</th><th>Slug</th><th>Registered</th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
+<tr><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Slug</th><th>Registered</th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
 <tr><th></th><th></th><th></th><th></th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"></th></tr>
 </thead>
 <tbody>${rows}</tbody></table>
@@ -278,6 +288,26 @@ delBtn.addEventListener('click', async () => {
   await Promise.all(selected.map(slug => fetch('/api/doc/' + slug + '/file', {method:'DELETE'})));
   window.location.reload();
 });
+// Sort
+const tbody = document.querySelector('tbody');
+const origRows = Array.from(tbody.rows);
+const sortState = {file: null, dir: null};
+const ICONS = {null: '\u21c5', asc: '\u2191', desc: '\u2193'};
+function applySort(col, colIdx) {
+  const next = sortState[col] === null ? 'asc' : sortState[col] === 'asc' ? 'desc' : null;
+  Object.keys(sortState).forEach(k => sortState[k] = null);
+  sortState[col] = next;
+  const rows = next === null ? [...origRows] : [...origRows].sort((a, b) => {
+    const ta = a.cells[colIdx].textContent.trim().toLowerCase();
+    const tb = b.cells[colIdx].textContent.trim().toLowerCase();
+    return next === 'asc' ? ta.localeCompare(tb) : tb.localeCompare(ta);
+  });
+  rows.forEach(r => tbody.appendChild(r));
+  document.getElementById('sort-file').textContent = ICONS[sortState.file ?? null];
+  document.getElementById('sort-dir').textContent = ICONS[sortState.dir ?? null];
+}
+document.getElementById('sort-file').addEventListener('click', () => applySort('file', 0));
+document.getElementById('sort-dir').addEventListener('click', () => applySort('dir', 1));
 </script>
 </body></html>`);
 });
