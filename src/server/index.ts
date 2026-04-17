@@ -295,7 +295,9 @@ const origRows = Array.from(tbody.rows);
 const sortState = {file: null, dir: null, reg: null};
 const ICONS = {null: '\u21c5', asc: '\u2191', desc: '\u2193'};
 function applySort(col, colIdx) {
-  const next = sortState[col] === null ? 'asc' : sortState[col] === 'asc' ? 'desc' : null;
+  const first = col === 'reg' ? 'desc' : 'asc';
+  const second = first === 'asc' ? 'desc' : 'asc';
+  const next = sortState[col] === null ? first : sortState[col] === first ? second : null;
   Object.keys(sortState).forEach(k => sortState[k] = null);
   sortState[col] = next;
   const rows = next === null ? [...origRows] : [...origRows].sort((a, b) => {
