@@ -142,6 +142,7 @@ app.get("/api/doc/:slug", (req, res) => {
       mtime: stat.mtimeMs,
       slug: entry.slug,
       fileName: entry.originalBaseName,
+      absolutePath: entry.absolutePath,
     });
   } catch {
     removeDocument(req.params.slug);

@@ -22,6 +22,7 @@ export interface DocResponse {
   mtime: number;
   slug: string;
   fileName: string;
+  absolutePath: string;
 }
 
 export interface SaveRequest {

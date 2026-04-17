@@ -22,6 +22,7 @@ const CONTENT_WIDTH_STORAGE_KEY = "plan-present-content-width-rem";
 
 export default function Editor({ slug }: { slug: string }) {
   const [fileName, setFileName] = useState("");
+  const [absolutePath, setAbsolutePath] = useState("");
   const baseMtimeRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +89,7 @@ export default function Editor({ slug }: { slug: string }) {
         if (cancelled) return;
 
         setFileName(data.fileName);
+        setAbsolutePath(data.absolutePath);
         baseMtimeRef.current = data.mtime;
 
         if (editor) {
@@ -188,6 +190,24 @@ export default function Editor({ slug }: { slug: string }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      {absolutePath && (
+        <div
+          style={{
+            padding: "4px 16px",
+            background: "#f4f4f4",
+            fontFamily: "monospace",
+            fontSize: "12px",
+            color: "#555",
+            borderBottom: "1px solid #e0e0e0",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={absolutePath}
+        >
+          {absolutePath}
+        </div>
+      )}
       <header
         style={{
           padding: "8px 16px",
