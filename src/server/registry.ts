@@ -108,6 +108,14 @@ export function listDocuments(): RegistryEntry[] {
   return Array.from(bySlug.values());
 }
 
+export function setPinned(slug: string, pinned: boolean): RegistryEntry | undefined {
+  const entry = bySlug.get(slug);
+  if (!entry) return undefined;
+  entry.pinned = pinned;
+  persistToDisk();
+  return entry;
+}
+
 export function removeDocument(slug: string): boolean {
   const entry = bySlug.get(slug);
   if (!entry) return false;

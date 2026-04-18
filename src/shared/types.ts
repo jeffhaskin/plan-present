@@ -6,6 +6,7 @@ export interface RegistryEntry {
   lastSavedAt: string;
   lastKnownMtimeMs: number;
   lastKnownSize: number;
+  pinned?: boolean;
 }
 
 export interface OpenRequest {

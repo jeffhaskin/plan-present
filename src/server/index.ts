@@ -10,6 +10,7 @@ import {
   getDocumentByPath,
   listDocuments,
   removeDocument,
+  setPinned,
   loadFromDisk,
 } from "./registry";
 import { saveWithConflictDetection } from "./conflict";
@@ -174,6 +175,21 @@ app.put("/api/doc/:slug", (req, res) => {
   });
 });
 
+// POST /api/doc/:slug/pin — set the pinned flag on a document
+app.post("/api/doc/:slug/pin", (req, res) => {
+  const { pinned } = req.body;
+  if (typeof pinned !== "boolean") {
+    res.status(400).json({ error: "pinned (boolean) is required" });
+    return;
+  }
+  const entry = setPinned(req.params.slug, pinned);
+  if (!entry) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  res.json({ pinned: !!entry.pinned });
+});
+
 // DELETE /api/doc/:slug — unregister a document
 app.delete("/api/doc/:slug", (req, res) => {
   const removed = removeDocument(req.params.slug);
@@ -206,7 +222,12 @@ app.delete("/api/doc/:slug/file", (req, res) => {
 
 // GET / — index page listing registered documents
 app.get("/", (_req, res) => {
-  const docs = [...listDocuments()].sort((a, b) => b.registeredAt.localeCompare(a.registeredAt));
+  const docs = [...listDocuments()].sort((a, b) => {
+    const pa = a.pinned ? 1 : 0;
+    const pb = b.pinned ? 1 : 0;
+    if (pa !== pb) return pb - pa;
+    return b.registeredAt.localeCompare(a.registeredAt);
+  });
   const tailscaleUrl = `http://${tailscaleHost}:${PORT}`;
 
   if (docs.length === 0) {
@@ -228,7 +249,7 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4
   const rows = docs
     .map(
       (d) =>
-        `<tr><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td class="dir"><code>${path.dirname(d.absolutePath)}</code></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
+        `<tr data-pinned="${d.pinned ? "true" : "false"}"><td class="pin-col"><button class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">\u{1F4CC}</button></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td class="dir"><code>${path.dirname(d.absolutePath)}</code></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
     )
     .join("\n");
 
@@ -245,12 +266,17 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
 thead tr:last-child th{padding-top:4px;padding-bottom:6px;border-bottom:1px solid #eee}
 td.dir{width:14ch;min-width:14ch;max-width:14ch;white-space:normal;word-break:break-all}
 .sort-btn{background:none;border:none;cursor:pointer;font-size:0.8rem;padding:0 3px;color:#999;vertical-align:middle}
-.sort-btn:hover{color:#333}</style></head>
+.sort-btn:hover{color:#333}
+th.pin-col,td.pin-col{width:36px;text-align:center;padding-left:4px;padding-right:4px}
+.pin-btn{background:none;border:none;cursor:pointer;font-size:1.05rem;padding:2px 4px;line-height:1;opacity:0.22;filter:grayscale(1);transition:opacity 0.15s,filter 0.15s,transform 0.15s;transform:rotate(35deg)}
+.pin-btn:hover{opacity:0.55}
+.pin-btn.pinned{opacity:1;filter:none;transform:rotate(0deg)}
+.pin-btn:disabled{cursor:wait}</style></head>
 <body><h1>plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
-<tr><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Slug</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
-<tr><th></th><th></th><th></th><th></th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"></th></tr>
+<tr><th class="pin-col" title="Pinned">\u{1F4CC}</th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Slug</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
+<tr><th class="pin-col"></th><th></th><th></th><th></th><th></th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"></th></tr>
 </thead>
 <tbody>${rows}</tbody></table>
 <script>
@@ -289,30 +315,71 @@ delBtn.addEventListener('click', async () => {
   await Promise.all(selected.map(slug => fetch('/api/doc/' + slug + '/file', {method:'DELETE'})));
   window.location.reload();
 });
-// Sort
+// Sort (pin column is col 0; pinned rows always float to top)
 const tbody = document.querySelector('tbody');
 const origRows = Array.from(tbody.rows);
+const origIndex = new Map(origRows.map((r, i) => [r, i]));
+const COL_IDX = {file: 1, dir: 2, reg: 4};
 const sortState = {file: null, dir: null, reg: 'desc'};
 const ICONS = {null: '\u21c5', asc: '\u2191', desc: '\u2193'};
-function applySort(col, colIdx) {
-  const first = col === 'reg' ? 'desc' : 'asc';
-  const second = first === 'asc' ? 'desc' : 'asc';
-  const next = sortState[col] === null ? first : sortState[col] === first ? second : null;
-  Object.keys(sortState).forEach(k => sortState[k] = null);
-  sortState[col] = next;
-  const rows = next === null ? [...origRows] : [...origRows].sort((a, b) => {
-    const ta = a.cells[colIdx].textContent.trim().toLowerCase();
-    const tb = b.cells[colIdx].textContent.trim().toLowerCase();
-    return next === 'asc' ? ta.localeCompare(tb) : tb.localeCompare(ta);
+function rebuildOrder() {
+  const active = Object.keys(sortState).find(k => sortState[k] !== null);
+  const rows = [...origRows];
+  if (active) {
+    const colIdx = COL_IDX[active];
+    const dir = sortState[active];
+    rows.sort((a, b) => {
+      const ta = a.cells[colIdx].textContent.trim().toLowerCase();
+      const tb = b.cells[colIdx].textContent.trim().toLowerCase();
+      const cmp = ta.localeCompare(tb);
+      if (cmp !== 0) return dir === 'asc' ? cmp : -cmp;
+      return origIndex.get(a) - origIndex.get(b);
+    });
+  }
+  rows.sort((a, b) => {
+    const pa = a.dataset.pinned === 'true' ? 1 : 0;
+    const pb = b.dataset.pinned === 'true' ? 1 : 0;
+    return pb - pa;
   });
   rows.forEach(r => tbody.appendChild(r));
   document.getElementById('sort-file').textContent = ICONS[sortState.file ?? null];
   document.getElementById('sort-dir').textContent = ICONS[sortState.dir ?? null];
   document.getElementById('sort-reg').textContent = ICONS[sortState.reg ?? null];
 }
-document.getElementById('sort-file').addEventListener('click', () => applySort('file', 0));
-document.getElementById('sort-dir').addEventListener('click', () => applySort('dir', 1));
-document.getElementById('sort-reg').addEventListener('click', () => applySort('reg', 3));
+function applySort(col) {
+  const first = col === 'reg' ? 'desc' : 'asc';
+  const second = first === 'asc' ? 'desc' : 'asc';
+  const next = sortState[col] === null ? first : sortState[col] === first ? second : null;
+  Object.keys(sortState).forEach(k => sortState[k] = null);
+  sortState[col] = next;
+  rebuildOrder();
+}
+document.getElementById('sort-file').addEventListener('click', () => applySort('file'));
+document.getElementById('sort-dir').addEventListener('click', () => applySort('dir'));
+document.getElementById('sort-reg').addEventListener('click', () => applySort('reg'));
+document.querySelectorAll('.pin-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const slug = btn.dataset.slug;
+    const row = btn.closest('tr');
+    const nextPinned = row.dataset.pinned !== 'true';
+    btn.disabled = true;
+    try {
+      const resp = await fetch('/api/doc/' + slug + '/pin', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({pinned: nextPinned}),
+      });
+      if (!resp.ok) return;
+      row.dataset.pinned = nextPinned ? 'true' : 'false';
+      btn.classList.toggle('pinned', nextPinned);
+      btn.title = nextPinned ? 'Unpin' : 'Pin';
+      btn.setAttribute('aria-label', btn.title);
+      rebuildOrder();
+    } finally {
+      btn.disabled = false;
+    }
+  });
+});
 </script>
 </body></html>`);
 });
