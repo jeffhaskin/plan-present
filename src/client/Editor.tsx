@@ -253,6 +253,13 @@ export default function Editor({ slug }: { slug: string }) {
             <span style={{ color: "#cc3300", fontSize: "13px" }}>{actionError}</span>
           )}
           <button
+            className="btn-save"
+            onClick={handleHome}
+            style={{ background: "#fff3b0", borderColor: "#e6d77a" }}
+          >
+            Home
+          </button>
+          <button
             className={readOnly ? "btn-toggle-edit" : "btn-toggle-edit btn-toggle-edit--active"}
             onClick={() => setReadOnly((v) => !v)}
             title={readOnly ? "Enable editing" : "Lock to read-only"}
@@ -274,12 +281,6 @@ export default function Editor({ slug }: { slug: string }) {
             title="Render the document as plain-text markdown"
           >
             {plainMode === "view" ? "Show WYSIWYG" : "Show as plain text"}
-          </button>
-          <button
-            className="btn-save"
-            onClick={handleHome}
-          >
-            Home
           </button>
           <button
             className="btn-done"
