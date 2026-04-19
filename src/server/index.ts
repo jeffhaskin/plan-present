@@ -11,6 +11,7 @@ import {
   listDocuments,
   removeDocument,
   setPinned,
+  setPriorityPin,
   loadFromDisk,
 } from "./registry";
 import { saveWithConflictDetection } from "./conflict";
@@ -187,7 +188,39 @@ app.post("/api/doc/:slug/pin", (req, res) => {
     res.status(404).json({ error: "Document not found" });
     return;
   }
-  res.json({ pinned: !!entry.pinned });
+  res.json({ pinned: !!entry.pinned, priorityPin: entry.priorityPin ?? null });
+});
+
+// POST /api/doc/:slug/priority-pin — set or clear the priority-pin slot (1-5)
+app.post("/api/doc/:slug/priority-pin", (req, res) => {
+  const { priority } = req.body;
+  if (priority !== null && !(Number.isInteger(priority) && priority >= 1 && priority <= 5)) {
+    res.status(400).json({ error: "priority must be null or an integer 1-5" });
+    return;
+  }
+  let result;
+  try {
+    result = setPriorityPin(req.params.slug, priority);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  if (!result) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  res.json({
+    entry: {
+      slug: result.entry.slug,
+      pinned: !!result.entry.pinned,
+      priorityPin: result.entry.priorityPin ?? null,
+    },
+    affected: result.affected.map((e) => ({
+      slug: e.slug,
+      pinned: !!e.pinned,
+      priorityPin: e.priorityPin ?? null,
+    })),
+  });
 });
 
 // DELETE /api/doc/:slug — unregister a document
@@ -223,6 +256,11 @@ app.delete("/api/doc/:slug/file", (req, res) => {
 // GET / — index page listing registered documents
 app.get("/", (_req, res) => {
   const docs = [...listDocuments()].sort((a, b) => {
+    const ap = typeof a.priorityPin === "number" ? a.priorityPin : null;
+    const bp = typeof b.priorityPin === "number" ? b.priorityPin : null;
+    if (ap !== null && bp === null) return -1;
+    if (ap === null && bp !== null) return 1;
+    if (ap !== null && bp !== null && ap !== bp) return ap - bp;
     const pa = a.pinned ? 1 : 0;
     const pb = b.pinned ? 1 : 0;
     if (pa !== pb) return pb - pa;
@@ -246,10 +284,18 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4
     return;
   }
 
+  const prioOptions = (p?: number) =>
+    ["", "1", "2", "3", "4", "5"]
+      .map(
+        (v) =>
+          `<option value="${v}"${(p ?? "") === (v === "" ? "" : Number(v)) ? " selected" : ""}>${v === "" ? "\u2014" : v}</option>`,
+      )
+      .join("");
+
   const rows = docs
     .map(
       (d) =>
-        `<tr data-pinned="${d.pinned ? "true" : "false"}"><td class="pin-col"><button class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">\u{1F4CC}</button></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td class="dir"><code>${path.dirname(d.absolutePath)}</code></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
+        `<tr data-pinned="${d.pinned ? "true" : "false"}" data-priority="${d.priorityPin ?? ""}"><td class="pin-col"><button class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">\u{1F4CC}</button></td><td class="prio-col"><select class="prio-select" data-slug="${d.slug}" title="Priority pin (1-5)" aria-label="Priority pin">${prioOptions(d.priorityPin)}</select></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td class="dir"><code>${path.dirname(d.absolutePath)}</code></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
     )
     .join("\n");
 
@@ -271,12 +317,16 @@ th.pin-col,td.pin-col{width:36px;text-align:center;padding-left:4px;padding-righ
 .pin-btn{background:none;border:none;cursor:pointer;font-size:1.05rem;padding:2px 4px;line-height:1;opacity:0.22;filter:grayscale(1);transition:opacity 0.15s,filter 0.15s,transform 0.15s;transform:rotate(35deg)}
 .pin-btn:hover{opacity:0.55}
 .pin-btn.pinned{opacity:1;filter:none;transform:rotate(0deg)}
-.pin-btn:disabled{cursor:wait}</style></head>
+.pin-btn:disabled{cursor:wait}
+th.prio-col,td.prio-col{width:46px;text-align:center;padding-left:2px;padding-right:2px}
+.prio-select{font-size:0.85rem;padding:1px 2px;border:1px solid #ddd;border-radius:3px;background:#fff;color:#666;cursor:pointer}
+tr[data-priority]:not([data-priority=""]) .prio-select{background:#fff7c2;color:#333;border-color:#e0c96a;font-weight:600}
+.prio-select:disabled{cursor:wait;opacity:0.6}</style></head>
 <body><h1>plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
-<tr><th class="pin-col" title="Pinned">\u{1F4CC}</th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Slug</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
-<tr><th class="pin-col"></th><th></th><th></th><th></th><th></th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"></th></tr>
+<tr><th class="pin-col" title="Pinned">\u{1F4CC}</th><th class="prio-col" title="Priority pin (1-5)">#</th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Slug</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
+<tr><th class="pin-col"></th><th class="prio-col"></th><th></th><th></th><th></th><th></th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"></th></tr>
 </thead>
 <tbody>${rows}</tbody></table>
 <script>
@@ -315,13 +365,17 @@ delBtn.addEventListener('click', async () => {
   await Promise.all(selected.map(slug => fetch('/api/doc/' + slug + '/file', {method:'DELETE'})));
   window.location.reload();
 });
-// Sort (pin column is col 0; pinned rows always float to top)
+// Sort (pin col = 0, priority col = 1; priority pins float above regular pins which float above the rest)
 const tbody = document.querySelector('tbody');
 const origRows = Array.from(tbody.rows);
 const origIndex = new Map(origRows.map((r, i) => [r, i]));
-const COL_IDX = {file: 1, dir: 2, reg: 4};
+const COL_IDX = {file: 2, dir: 3, reg: 5};
 const sortState = {file: null, dir: null, reg: 'desc'};
 const ICONS = {null: '\u21c5', asc: '\u2191', desc: '\u2193'};
+function priorityOf(row) {
+  const v = row.dataset.priority;
+  return v ? Number(v) : null;
+}
 function rebuildOrder() {
   const active = Object.keys(sortState).find(k => sortState[k] !== null);
   const rows = [...origRows];
@@ -337,6 +391,11 @@ function rebuildOrder() {
     });
   }
   rows.sort((a, b) => {
+    const ap = priorityOf(a);
+    const bp = priorityOf(b);
+    if (ap !== null && bp === null) return -1;
+    if (ap === null && bp !== null) return 1;
+    if (ap !== null && bp !== null && ap !== bp) return ap - bp;
     const pa = a.dataset.pinned === 'true' ? 1 : 0;
     const pb = b.dataset.pinned === 'true' ? 1 : 0;
     return pb - pa;
@@ -357,6 +416,18 @@ function applySort(col) {
 document.getElementById('sort-file').addEventListener('click', () => applySort('file'));
 document.getElementById('sort-dir').addEventListener('click', () => applySort('dir'));
 document.getElementById('sort-reg').addEventListener('click', () => applySort('reg'));
+function applyRowState(row, pinned, priority) {
+  row.dataset.pinned = pinned ? 'true' : 'false';
+  row.dataset.priority = priority == null ? '' : String(priority);
+  const btn = row.querySelector('.pin-btn');
+  if (btn) {
+    btn.classList.toggle('pinned', !!pinned);
+    btn.title = pinned ? 'Unpin' : 'Pin';
+    btn.setAttribute('aria-label', btn.title);
+  }
+  const sel = row.querySelector('.prio-select');
+  if (sel) sel.value = priority == null ? '' : String(priority);
+}
 document.querySelectorAll('.pin-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
     const slug = btn.dataset.slug;
@@ -370,13 +441,41 @@ document.querySelectorAll('.pin-btn').forEach(btn => {
         body: JSON.stringify({pinned: nextPinned}),
       });
       if (!resp.ok) return;
-      row.dataset.pinned = nextPinned ? 'true' : 'false';
-      btn.classList.toggle('pinned', nextPinned);
-      btn.title = nextPinned ? 'Unpin' : 'Pin';
-      btn.setAttribute('aria-label', btn.title);
+      const data = await resp.json();
+      applyRowState(row, data.pinned, data.priorityPin);
       rebuildOrder();
     } finally {
       btn.disabled = false;
+    }
+  });
+});
+document.querySelectorAll('.prio-select').forEach(sel => {
+  sel.addEventListener('change', async () => {
+    const slug = sel.dataset.slug;
+    const row = sel.closest('tr');
+    const raw = sel.value;
+    const priority = raw === '' ? null : Number(raw);
+    sel.disabled = true;
+    try {
+      const resp = await fetch('/api/doc/' + slug + '/priority-pin', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({priority}),
+      });
+      if (!resp.ok) {
+        // Revert the select to the row's current state on failure
+        sel.value = row.dataset.priority || '';
+        return;
+      }
+      const data = await resp.json();
+      applyRowState(row, data.entry.pinned, data.entry.priorityPin);
+      for (const aff of (data.affected || [])) {
+        const other = document.querySelector('.prio-select[data-slug="' + aff.slug + '"]');
+        if (other) applyRowState(other.closest('tr'), aff.pinned, aff.priorityPin);
+      }
+      rebuildOrder();
+    } finally {
+      sel.disabled = false;
     }
   });
 });

@@ -112,8 +112,68 @@ export function setPinned(slug: string, pinned: boolean): RegistryEntry | undefi
   const entry = bySlug.get(slug);
   if (!entry) return undefined;
   entry.pinned = pinned;
+  if (!pinned) {
+    delete entry.priorityPin;
+  }
   persistToDisk();
   return entry;
+}
+
+export function setPriorityPin(
+  slug: string,
+  priority: number | null,
+): { entry: RegistryEntry; affected: RegistryEntry[] } | undefined {
+  const entry = bySlug.get(slug);
+  if (!entry) return undefined;
+
+  const affected: RegistryEntry[] = [];
+
+  if (priority === null) {
+    delete entry.priorityPin;
+    persistToDisk();
+    return { entry, affected };
+  }
+
+  if (!Number.isInteger(priority) || priority < 1 || priority > 5) {
+    throw new Error("priority must be null or an integer 1-5");
+  }
+
+  // Clear target's current priority so it doesn't participate in the shift below
+  if (typeof entry.priorityPin === "number") {
+    delete entry.priorityPin;
+  }
+
+  const bySlot = new Map<number, RegistryEntry>();
+  for (const other of bySlug.values()) {
+    if (other !== entry && typeof other.priorityPin === "number") {
+      bySlot.set(other.priorityPin, other);
+    }
+  }
+
+  // Find contiguous occupied run starting at `priority`
+  let end = priority - 1;
+  while (end + 1 <= 5 && bySlot.has(end + 1)) end++;
+
+  // If the run extends through slot 5, overflow that holder to a regular pin
+  if (end === 5) {
+    const overflow = bySlot.get(5)!;
+    delete overflow.priorityPin;
+    affected.push(overflow);
+    end = 4;
+  }
+
+  // Shift occupied slots [priority..end] down by one (end → end+1, ..., priority → priority+1)
+  for (let k = end; k >= priority; k--) {
+    const occupant = bySlot.get(k);
+    if (!occupant) continue;
+    occupant.priorityPin = k + 1;
+    affected.push(occupant);
+  }
+
+  entry.priorityPin = priority;
+  entry.pinned = true;
+  persistToDisk();
+  return { entry, affected };
 }
 
 export function removeDocument(slug: string): boolean {

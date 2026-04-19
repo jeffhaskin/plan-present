@@ -7,6 +7,7 @@ export interface RegistryEntry {
   lastKnownMtimeMs: number;
   lastKnownSize: number;
   pinned?: boolean;
+  priorityPin?: number;
 }
 
 export interface OpenRequest {
