@@ -271,7 +271,7 @@ app.get("/", (_req, res) => {
   if (docs.length === 0) {
     res.send(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>plan-present</title>
-<style>body{font-family:system-ui,sans-serif;max-width:700px;margin:2rem auto;padding:0 1rem;color:#333}
+<style>body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:#333}
 code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4;padding:1rem;border-radius:6px;overflow-x:auto}</style></head>
 <body><h1>plan-present</h1>
 <p>No documents registered yet.</p>
@@ -315,7 +315,7 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4
 
   res.send(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>plan-present</title>
-<style>body{font-family:system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#333}
+<style>body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:#333}
 table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #eee}
 th{font-weight:600}a{color:#0066cc;text-decoration:none}a:hover{text-decoration:underline}
 code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
