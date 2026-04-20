@@ -404,8 +404,8 @@ body {
 }
 
 /* Theme-aware icon: dark icon shown in light mode, light icon shown in dark mode */
-.theme-icon-light { display: inline; vertical-align: middle; }
-.theme-icon-dark  { display: none;   vertical-align: middle; }
+.theme-icon-light { display: inline; vertical-align: middle; filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.25)); }
+.theme-icon-dark  { display: none;   vertical-align: middle; filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.25)); }
 [data-theme="dark"] .theme-icon-light { display: none; }
 [data-theme="dark"] .theme-icon-dark  { display: inline; }
 

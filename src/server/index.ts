@@ -276,7 +276,7 @@ app.get("/", (_req, res) => {
 body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:var(--fg);background:var(--bg)}
 code{background:var(--surface);padding:2px 6px;border-radius:3px}pre{background:var(--surface);padding:1rem;border-radius:6px;overflow-x:auto}
 .btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}
-.theme-icon-light{display:inline;vertical-align:middle}.theme-icon-dark{display:none;vertical-align:middle}[data-theme=dark] .theme-icon-light{display:none}[data-theme=dark] .theme-icon-dark{display:inline}</style></head>
+.theme-icon-light{display:inline;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(0,0,0,0.25))}.theme-icon-dark{display:none;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(255,255,255,0.25))}[data-theme=dark] .theme-icon-light{display:none}[data-theme=dark] .theme-icon-dark{display:inline}</style></head>
 <body><button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>
 <h1><img src="/icon_dark.png" class="theme-icon-dark" style="height:1em;margin-right:0.35em"><img src="/icon_light.png" class="theme-icon-light" style="height:1em;margin-right:0.35em">plan-present</h1>
 <p>No documents registered yet.</p>
@@ -360,7 +360,7 @@ th.prio-col,td.prio-col{width:46px;text-align:center;padding-left:2px;padding-ri
 tr[data-priority]:not([data-priority=""]) .prio-select{background:#ffe4c4;color:#7a3b00;border-color:#e89a4f;font-weight:600}
 .prio-select:disabled{cursor:wait;opacity:0.6}
 .btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}
-.theme-icon-light{display:inline;vertical-align:middle}.theme-icon-dark{display:none;vertical-align:middle}[data-theme=dark] .theme-icon-light{display:none}[data-theme=dark] .theme-icon-dark{display:inline}</style></head>
+.theme-icon-light{display:inline;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(0,0,0,0.25))}.theme-icon-dark{display:none;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(255,255,255,0.25))}[data-theme=dark] .theme-icon-light{display:none}[data-theme=dark] .theme-icon-dark{display:inline}</style></head>
 <body><button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>
 <h1><img src="/icon_dark.png" class="theme-icon-dark" style="height:1em;margin-right:0.35em"><img src="/icon_light.png" class="theme-icon-light" style="height:1em;margin-right:0.35em">plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
