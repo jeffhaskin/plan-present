@@ -324,7 +324,7 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
 #delete-btn{background:#881111}#delete-btn:hover{background:#660000}
 .action-btn:disabled{background:#aaa!important;cursor:not-allowed}
 thead tr:last-child th{padding-top:4px;padding-bottom:6px;border-bottom:1px solid #eee}
-td.dir{width:14ch;min-width:14ch;max-width:14ch;white-space:normal;word-break:break-all}
+td.dir{white-space:normal;word-break:break-all}
 th.copy-col,td.copy-col{text-align:center;padding-left:8px;padding-right:8px;white-space:nowrap}
 .dir-copy-btn{display:inline-flex;align-items:center;justify-content:center;background:none;border:1px solid transparent;border-radius:3px;padding:2px;cursor:pointer;color:#999;line-height:0;transition:color 0.12s,border-color 0.12s,background 0.12s}
 .dir-copy-btn:hover{color:#333;border-color:#ccc;background:#fafafa}
