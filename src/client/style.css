@@ -1,3 +1,77 @@
+:root {
+  --bg: #fff;
+  --fg: #333;
+  --fg-muted: #666;
+  --fg-subtle: #555;
+  --border: #e0e0e0;
+  --border-light: #eee;
+  --surface: #f5f5f5;
+  --surface-alt: #f4f4f4;
+  --surface-raised: #f9f9f9;
+  --link: #0066cc;
+  --blockquote-border: #8899aa;
+  --blockquote-fg: #555;
+  --table-border: #ddd;
+  --badge-bg: #f0f0f0;
+  --badge-border: #ddd;
+  --badge-fg: #777;
+  --btn-bg: #f5f5f5;
+  --btn-border: #ccc;
+  --btn-fg: #333;
+  --btn-hover: #eee;
+  --btn-active: #ddd;
+  --btn-edit-bg: #e8f4e8;
+  --btn-edit-border: #6a6;
+  --btn-edit-fg: #2a7a2a;
+  --btn-edit-hover: #dceddc;
+  --slider-bg: rgba(255, 255, 255, 0.96);
+  --slider-border: #d8d8d8;
+  --copy-btn-bg: rgba(255, 255, 255, 0.92);
+  --copy-btn-border: #d8d8d8;
+  --copy-btn-fg: #555;
+  --copy-btn-hover-bg: #fff;
+  --copy-btn-hover-fg: #222;
+  --copy-btn-hover-border: #b8b8b8;
+  --selection: rgba(0, 102, 204, 0.15);
+}
+
+[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --fg: #d8d8d8;
+  --fg-muted: #999;
+  --fg-subtle: #888;
+  --border: #333;
+  --border-light: #2a2a2a;
+  --surface: #252525;
+  --surface-alt: #222;
+  --surface-raised: #2a2a2a;
+  --link: #5599ee;
+  --blockquote-border: #445566;
+  --blockquote-fg: #999;
+  --table-border: #383838;
+  --badge-bg: #2a2a2a;
+  --badge-border: #444;
+  --badge-fg: #aaa;
+  --btn-bg: #2a2a2a;
+  --btn-border: #444;
+  --btn-fg: #d8d8d8;
+  --btn-hover: #333;
+  --btn-active: #3a3a3a;
+  --btn-edit-bg: #162416;
+  --btn-edit-border: #4a7a4a;
+  --btn-edit-fg: #6ec86e;
+  --btn-edit-hover: #1c2e1c;
+  --slider-bg: rgba(26, 26, 26, 0.97);
+  --slider-border: #444;
+  --copy-btn-bg: rgba(30, 30, 30, 0.92);
+  --copy-btn-border: #444;
+  --copy-btn-fg: #aaa;
+  --copy-btn-hover-bg: #2a2a2a;
+  --copy-btn-hover-fg: #e0e0e0;
+  --copy-btn-hover-border: #555;
+  --selection: rgba(85, 153, 238, 0.2);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -12,8 +86,8 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 17px;
   line-height: 1.6;
-  color: #333;
-  background: #fff;
+  color: var(--fg);
+  background: var(--bg);
 }
 
 /* Editor container */
@@ -31,7 +105,7 @@ body {
   font-weight: 700;
   margin: 1.5rem 0 0.75rem;
   padding-bottom: 0.3rem;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border);
 }
 
 .ProseMirror h2 {
@@ -39,7 +113,7 @@ body {
   font-weight: 600;
   margin: 1.3rem 0 0.6rem;
   padding-bottom: 0.2rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .ProseMirror h3 {
@@ -61,7 +135,7 @@ body {
 
 /* Links */
 .ProseMirror a {
-  color: #0066cc;
+  color: var(--link);
   text-decoration: none;
 }
 
@@ -72,7 +146,7 @@ body {
 /* Code - inline */
 .ProseMirror code {
   font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
-  background: #f5f5f5;
+  background: var(--surface);
   padding: 2px 5px;
   border-radius: 3px;
   font-size: 0.9em;
@@ -82,7 +156,7 @@ body {
 .ProseMirror pre {
   position: relative;
   font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
-  background: #f5f5f5;
+  background: var(--surface);
   border-radius: 6px;
   padding: 1em;
   margin: 0.75rem 0;
@@ -102,10 +176,10 @@ body {
   width: 26px;
   height: 26px;
   padding: 0;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #d8d8d8;
+  background: var(--copy-btn-bg);
+  border: 1px solid var(--copy-btn-border);
   border-radius: 4px;
-  color: #555;
+  color: var(--copy-btn-fg);
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.12s, background 0.12s, color 0.12s, border-color 0.12s;
@@ -119,9 +193,9 @@ body {
   opacity: 1;
 }
 .ProseMirror pre > .copy-btn:hover {
-  background: #fff;
-  color: #222;
-  border-color: #b8b8b8;
+  background: var(--copy-btn-hover-bg);
+  color: var(--copy-btn-hover-fg);
+  border-color: var(--copy-btn-hover-border);
 }
 .ProseMirror pre > .copy-btn.copied {
   color: #2a7a2a;
@@ -150,22 +224,22 @@ body {
 
 .ProseMirror th,
 .ProseMirror td {
-  border: 1px solid #ddd;
+  border: 1px solid var(--table-border);
   padding: 8px 12px;
   text-align: left;
 }
 
 .ProseMirror th {
-  background: #f9f9f9;
+  background: var(--surface-raised);
   font-weight: 600;
 }
 
 /* Blockquotes */
 .ProseMirror blockquote {
-  border-left: 3px solid #8899aa;
+  border-left: 3px solid var(--blockquote-border);
   margin: 0.75rem 0;
   padding: 0.3rem 0 0.3rem 1rem;
-  color: #555;
+  color: var(--blockquote-fg);
   font-style: italic;
 }
 
@@ -208,7 +282,7 @@ body {
 /* Horizontal rule */
 .ProseMirror hr {
   border: none;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid var(--border);
   margin: 1.5rem 0;
 }
 
@@ -219,7 +293,7 @@ body {
 
 /* Selection */
 .ProseMirror ::selection {
-  background: rgba(0, 102, 204, 0.15);
+  background: var(--selection);
 }
 
 /* Read-only badge */
@@ -229,9 +303,9 @@ body {
   padding: 1px 7px;
   font-size: 11px;
   font-weight: 500;
-  color: #777;
-  background: #f0f0f0;
-  border: 1px solid #ddd;
+  color: var(--badge-fg);
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
   border-radius: 4px;
   vertical-align: middle;
   letter-spacing: 0.02em;
@@ -243,10 +317,10 @@ body {
   font-size: 15px;
   font-weight: 500;
   font-family: inherit;
-  border: 1px solid #ccc;
+  border: 1px solid var(--btn-border);
   border-radius: 6px;
-  background: #f5f5f5;
-  color: #333;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
@@ -254,17 +328,17 @@ body {
 }
 
 .btn-toggle-edit:hover {
-  background: #eee;
+  background: var(--btn-hover);
 }
 
 .btn-toggle-edit--active {
-  background: #e8f4e8;
-  border-color: #6a6;
-  color: #2a7a2a;
+  background: var(--btn-edit-bg);
+  border-color: var(--btn-edit-border);
+  color: var(--btn-edit-fg);
 }
 
 .btn-toggle-edit--active:hover {
-  background: #dceddc;
+  background: var(--btn-edit-hover);
 }
 
 /* Header buttons — shared base */
@@ -274,10 +348,10 @@ body {
   font-size: 15px;
   font-weight: 500;
   font-family: inherit;
-  border: 1px solid #ccc;
+  border: 1px solid var(--btn-border);
   border-radius: 6px;
-  background: #f5f5f5;
-  color: #333;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
   cursor: pointer;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
   touch-action: manipulation;
@@ -288,7 +362,7 @@ body {
 
 .btn-save:active,
 .btn-done:active {
-  background: #ddd;
+  background: var(--btn-active);
   transform: scale(0.97);
 }
 
@@ -329,6 +403,65 @@ body {
   cursor: default;
 }
 
+/* Dark mode toggle button */
+.btn-theme-toggle {
+  position: fixed;
+  top: 10px;
+  right: 14px;
+  z-index: 9999;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.btn-theme-toggle:hover {
+  background: var(--btn-hover);
+  color: var(--fg);
+}
+
+/* Editor structural elements */
+.editor-path-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-path-text {
+  flex: 1;
+  min-width: 0;
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor-header {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--fg-muted);
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg);
+}
+
 .width-slider {
   position: fixed;
   left: 50%;
@@ -338,9 +471,9 @@ body {
   align-items: center;
   gap: 0.75rem;
   padding: 0.65rem 0.9rem;
-  border: 1px solid #d8d8d8;
+  border: 1px solid var(--slider-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--slider-bg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   font-family: inherit;
   font-size: 14px;
@@ -349,12 +482,12 @@ body {
 
 .width-slider label {
   white-space: nowrap;
-  color: #555;
+  color: var(--fg-subtle);
 }
 
 .width-slider output {
   min-width: 4ch;
-  color: #333;
+  color: var(--fg);
   font-variant-numeric: tabular-nums;
 }
 

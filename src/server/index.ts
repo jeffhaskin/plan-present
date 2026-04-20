@@ -270,16 +270,31 @@ app.get("/", (_req, res) => {
 
   if (docs.length === 0) {
     res.send(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>plan-present</title>
-<style>body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:#333}
-code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4;padding:1rem;border-radius:6px;overflow-x:auto}</style></head>
-<body><h1>plan-present</h1>
+<html><head><meta charset="utf-8"><link rel="icon" href="/icon.png"><title>plan-present</title>
+<script>(function(){try{var t=localStorage.getItem('plan-present-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})()</script>
+<style>:root{--bg:#fff;--fg:#333;--fg-muted:#555;--surface:#f4f4f4;--border:#eee;--link:#0066cc;--btn-bg:#f5f5f5;--btn-border:#ccc;--btn-fg:#444}[data-theme=dark]{--bg:#1a1a1a;--fg:#d8d8d8;--fg-muted:#888;--surface:#252525;--border:#333;--link:#5599ee;--btn-bg:#2a2a2a;--btn-border:#444;--btn-fg:#bbb}
+body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:var(--fg);background:var(--bg)}
+code{background:var(--surface);padding:2px 6px;border-radius:3px}pre{background:var(--surface);padding:1rem;border-radius:6px;overflow-x:auto}
+.btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}</style></head>
+<body><button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>
+<h1><img src="/icon.png" style="height:1em;vertical-align:middle;margin-right:0.35em;display:inline">plan-present</h1>
 <p>No documents registered yet.</p>
 <p>Register a markdown file with:</p>
 <pre><code>curl -X POST ${tailscaleUrl}/open \\
   -H 'Content-Type: application/json' \\
   -d '{"path": "/absolute/path/to/your/file.md"}'</code></pre>
 <p>Then visit the returned URL to edit it in the browser.</p>
+<script>
+(function(){
+var SOLID="M272 384c9.6-31.9 29.5-59.1 49.2-86.2c0 0 0 0 0 0c5.2-7.1 10.4-14.2 15.4-21.4c19.8-28.5 31.4-63 31.4-100.3C368 78.8 289.2 0 192 0S16 78.8 16 176c0 37.3 11.6 71.9 31.4 100.3c5 7.2 10.2 14.3 15.4 21.4c0 0 0 0 0 0c19.8 27.1 39.7 54.4 49.2 86.2l160 0zM192 512c44.2 0 80-35.8 80-80l0-16-160 0 0 16c0 44.2 35.8 80 80 80zM112 176c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-61.9 50.1-112 112-112c8.8 0 16 7.2 16 16s-7.2 16-16 16c-44.2 0-80 35.8-80 80z";
+var REGULAR="M297.2 248.9C311.6 228.3 320 203.2 320 176c0-70.7-57.3-128-128-128S64 105.3 64 176c0 27.2 8.4 52.3 22.8 72.9c3.7 5.3 8.1 11.3 12.8 17.7c0 0 0 0 0 0c12.9 17.7 28.3 38.9 39.8 59.8c10.4 19 15.7 38.8 18.3 57.5L109 384c-2.2-12-5.9-23.7-11.8-34.5c-9.9-18-22.2-34.9-34.5-51.8c0 0 0 0 0 0s0 0 0 0c-5.2-7.1-10.4-14.2-15.4-21.4C27.6 247.9 16 213.3 16 176C16 78.8 94.8 0 192 0s176 78.8 176 176c0 37.3-11.6 71.9-31.4 100.3c-5 7.2-10.2 14.3-15.4 21.4c0 0 0 0 0 0s0 0 0 0c-12.3 16.8-24.6 33.7-34.5 51.8c-5.9 10.8-9.6 22.5-11.8 34.5l-48.6 0c2.6-18.7 7.9-38.6 18.3-57.5c11.5-20.9 26.9-42.1 39.8-59.8c0 0 0 0 0 0s0 0 0 0c4.7-6.4 9-12.4 12.7-17.7zM192 128c-26.5 0-48 21.5-48 48c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-44.2 35.8-80 80-80c8.8 0 16 7.2 16 16s-7.2 16-16 16zm0 384c-44.2 0-80-35.8-80-80l0-16 160 0 0 16c0 44.2-35.8 80-80 80z";
+var dark=document.documentElement.getAttribute('data-theme')==='dark';
+var path=document.getElementById('theme-path');
+function apply(d){document.documentElement.setAttribute('data-theme',d?'dark':'light');try{localStorage.setItem('plan-present-theme',d?'dark':'light');}catch(e){}path.setAttribute('d',d?REGULAR:SOLID);dark=d;}
+apply(dark);
+document.getElementById('theme-btn').addEventListener('click',function(){apply(!dark);});
+})();
+</script>
 </body></html>`);
     return;
   }
@@ -314,34 +329,38 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4
     .join("\n");
 
   res.send(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>plan-present</title>
-<style>body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:#333}
-table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #eee}
-th{font-weight:600}a{color:#0066cc;text-decoration:none}a:hover{text-decoration:underline}
-code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
+<html><head><meta charset="utf-8"><link rel="icon" href="/icon.png"><title>plan-present</title>
+<script>(function(){try{var t=localStorage.getItem('plan-present-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})()</script>
+<style>:root{--bg:#fff;--fg:#333;--fg-muted:#666;--surface:#f4f4f4;--border:#eee;--link:#0066cc;--btn-bg:#f5f5f5;--btn-border:#ccc;--btn-fg:#444;--sel-bg:#fafafa;--sort-fg:#999;--prio-bg:#fff;--prio-fg:#666;--prio-border:#ddd}[data-theme=dark]{--bg:#1a1a1a;--fg:#d8d8d8;--fg-muted:#aaa;--surface:#252525;--border:#333;--link:#5599ee;--btn-bg:#2a2a2a;--btn-border:#444;--btn-fg:#bbb;--sel-bg:#2a2a2a;--sort-fg:#666;--prio-bg:#252525;--prio-fg:#aaa;--prio-border:#444}
+body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:var(--fg);background:var(--bg)}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)}
+th{font-weight:600}a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
+code{background:var(--surface);padding:2px 6px;border-radius:3px}
 .action-btn{color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:0.85rem}
 #deregister-btn{background:#cc2222}#deregister-btn:hover{background:#aa1111}
 #delete-btn{background:#881111}#delete-btn:hover{background:#660000}
 .action-btn:disabled{background:#aaa!important;cursor:not-allowed}
-thead tr:last-child th{padding-top:4px;padding-bottom:6px;border-bottom:1px solid #eee}
+thead tr:last-child th{padding-top:4px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 td.dir{white-space:normal;word-break:break-all}
 th.copy-col,td.copy-col{text-align:center;padding-left:8px;padding-right:8px;white-space:nowrap}
-.dir-copy-btn{display:inline-flex;align-items:center;justify-content:center;background:none;border:1px solid transparent;border-radius:3px;padding:2px;cursor:pointer;color:#999;line-height:0;transition:color 0.12s,border-color 0.12s,background 0.12s}
-.dir-copy-btn:hover{color:#333;border-color:#ccc;background:#fafafa}
+.dir-copy-btn{display:inline-flex;align-items:center;justify-content:center;background:none;border:1px solid transparent;border-radius:3px;padding:2px;cursor:pointer;color:var(--sort-fg);line-height:0;transition:color 0.12s,border-color 0.12s,background 0.12s}
+.dir-copy-btn:hover{color:var(--fg);border-color:var(--btn-border);background:var(--sel-bg)}
 .dir-copy-btn.copied{color:#2a7a2a;border-color:#7ab77a;background:#f1f9f1}
 .dir-copy-btn.error{color:#cc3300;border-color:#e0a090;background:#fdf1ee}
-.sort-btn{background:none;border:none;cursor:pointer;font-size:0.8rem;padding:0 3px;color:#999;vertical-align:middle}
-.sort-btn:hover{color:#333}
+.sort-btn{background:none;border:none;cursor:pointer;font-size:0.8rem;padding:0 3px;color:var(--sort-fg);vertical-align:middle}
+.sort-btn:hover{color:var(--fg)}
 th.pin-col,td.pin-col{width:36px;text-align:center;padding-left:4px;padding-right:4px}
 .pin-btn{background:none;border:none;cursor:pointer;font-size:1.05rem;padding:2px 4px;line-height:1;opacity:0.22;filter:grayscale(1);transition:opacity 0.15s,filter 0.15s,transform 0.15s;transform:rotate(35deg)}
 .pin-btn:hover{opacity:0.55}
 .pin-btn.pinned{opacity:1;filter:none;transform:rotate(0deg)}
 .pin-btn:disabled{cursor:wait}
 th.prio-col,td.prio-col{width:46px;text-align:center;padding-left:2px;padding-right:2px}
-.prio-select{font-size:0.85rem;padding:1px 2px;border:1px solid #ddd;border-radius:3px;background:#fff;color:#666;cursor:pointer}
+.prio-select{font-size:0.85rem;padding:1px 2px;border:1px solid var(--prio-border);border-radius:3px;background:var(--prio-bg);color:var(--prio-fg);cursor:pointer}
 tr[data-priority]:not([data-priority=""]) .prio-select{background:#ffe4c4;color:#7a3b00;border-color:#e89a4f;font-weight:600}
-.prio-select:disabled{cursor:wait;opacity:0.6}</style></head>
-<body><h1>plan-present</h1>
+.prio-select:disabled{cursor:wait;opacity:0.6}
+.btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}</style></head>
+<body><button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>
+<h1><img src="/icon.png" style="height:1em;vertical-align:middle;margin-right:0.35em;display:inline">plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
 <tr><th class="pin-col" title="Pinned">\u{1F4CC}</th><th class="prio-col" title="Priority pin (1-5)">#</th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th class="copy-col" title="Copy pathname">Copy<br>Pathname</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
@@ -536,6 +555,16 @@ document.querySelectorAll('.prio-select').forEach(sel => {
     }
   });
 });
+
+(function(){
+var SOLID="M272 384c9.6-31.9 29.5-59.1 49.2-86.2c0 0 0 0 0 0c5.2-7.1 10.4-14.2 15.4-21.4c19.8-28.5 31.4-63 31.4-100.3C368 78.8 289.2 0 192 0S16 78.8 16 176c0 37.3 11.6 71.9 31.4 100.3c5 7.2 10.2 14.3 15.4 21.4c0 0 0 0 0 0c19.8 27.1 39.7 54.4 49.2 86.2l160 0zM192 512c44.2 0 80-35.8 80-80l0-16-160 0 0 16c0 44.2 35.8 80 80 80zM112 176c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-61.9 50.1-112 112-112c8.8 0 16 7.2 16 16s-7.2 16-16 16c-44.2 0-80 35.8-80 80z";
+var REGULAR="M297.2 248.9C311.6 228.3 320 203.2 320 176c0-70.7-57.3-128-128-128S64 105.3 64 176c0 27.2 8.4 52.3 22.8 72.9c3.7 5.3 8.1 11.3 12.8 17.7c0 0 0 0 0 0c12.9 17.7 28.3 38.9 39.8 59.8c10.4 19 15.7 38.8 18.3 57.5L109 384c-2.2-12-5.9-23.7-11.8-34.5c-9.9-18-22.2-34.9-34.5-51.8c0 0 0 0 0 0s0 0 0 0c-5.2-7.1-10.4-14.2-15.4-21.4C27.6 247.9 16 213.3 16 176C16 78.8 94.8 0 192 0s176 78.8 176 176c0 37.3-11.6 71.9-31.4 100.3c-5 7.2-10.2 14.3-15.4 21.4c0 0 0 0 0 0s0 0 0 0c-12.3 16.8-24.6 33.7-34.5 51.8c-5.9 10.8-9.6 22.5-11.8 34.5l-48.6 0c2.6-18.7 7.9-38.6 18.3-57.5c11.5-20.9 26.9-42.1 39.8-59.8c0 0 0 0 0 0s0 0 0 0c4.7-6.4 9-12.4 12.7-17.7zM192 128c-26.5 0-48 21.5-48 48c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-44.2 35.8-80 80-80c8.8 0 16 7.2 16 16s-7.2 16-16 16zm0 384c-44.2 0-80-35.8-80-80l0-16 160 0 0 16c0 44.2-35.8 80-80 80z";
+var dark=document.documentElement.getAttribute('data-theme')==='dark';
+var path=document.getElementById('theme-path');
+function applyTheme(d){document.documentElement.setAttribute('data-theme',d?'dark':'light');try{localStorage.setItem('plan-present-theme',d?'dark':'light');}catch(e){}path.setAttribute('d',d?REGULAR:SOLID);dark=d;}
+applyTheme(dark);
+document.getElementById('theme-btn').addEventListener('click',function(){applyTheme(!dark);});
+})();
 </script>
 </body></html>`);
 });

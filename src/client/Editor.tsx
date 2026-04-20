@@ -319,47 +319,14 @@ export default function Editor({ slug }: { slug: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       {absolutePath && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "4px 16px",
-            background: "#f4f4f4",
-            borderBottom: "1px solid #e0e0e0",
-          }}
-        >
-          <span
-            title={absolutePath}
-            style={{
-              flex: 1,
-              minWidth: 0,
-              fontFamily: "monospace",
-              fontSize: "12px",
-              color: "#555",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
+        <div className="editor-path-bar">
+          <span className="editor-path-text" title={absolutePath}>
             {absolutePath}
           </span>
           <PathCopyButton path={absolutePath} slug={slug} />
         </div>
       )}
-      <header
-        style={{
-          padding: "8px 16px",
-          borderBottom: "1px solid #e0e0e0",
-          fontFamily: "system-ui, sans-serif",
-          fontSize: "14px",
-          color: "#666",
-          flexShrink: 0,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+      <header className="editor-header">
         <span>
           {fileName}
           {readOnly && <span className="read-only-badge">Read-only</span>}
