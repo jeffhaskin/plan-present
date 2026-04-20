@@ -51,7 +51,7 @@ export default function App() {
         <Editor slug={slug} />
       ) : (
         <main>
-          <h1><img src="/icon.png" style={{height:"1em",verticalAlign:"middle",marginRight:"0.35em",display:"inline"}} alt="" />plan-present</h1>
+          <h1><img src="/icon_dark.png" className="theme-icon-dark" style={{height:"1em",marginRight:"0.35em"}} alt="" /><img src="/icon_light.png" className="theme-icon-light" style={{height:"1em",marginRight:"0.35em"}} alt="" />plan-present</h1>
           <p>No document selected. Navigate to <code>/doc/:slug</code> to open a document.</p>
         </main>
       )}

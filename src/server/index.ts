@@ -270,14 +270,15 @@ app.get("/", (_req, res) => {
 
   if (docs.length === 0) {
     res.send(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"><link rel="icon" href="/icon.png"><title>plan-present</title>
+<html><head><meta charset="utf-8"><link rel="icon" href="/icon_dark.png"><title>plan-present</title>
 <script>(function(){try{var t=localStorage.getItem('plan-present-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})()</script>
 <style>:root{--bg:#fff;--fg:#333;--fg-muted:#555;--surface:#f4f4f4;--border:#eee;--link:#0066cc;--btn-bg:#f5f5f5;--btn-border:#ccc;--btn-fg:#444}[data-theme=dark]{--bg:#1a1a1a;--fg:#d8d8d8;--fg-muted:#888;--surface:#252525;--border:#333;--link:#5599ee;--btn-bg:#2a2a2a;--btn-border:#444;--btn-fg:#bbb}
 body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:var(--fg);background:var(--bg)}
 code{background:var(--surface);padding:2px 6px;border-radius:3px}pre{background:var(--surface);padding:1rem;border-radius:6px;overflow-x:auto}
-.btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}</style></head>
+.btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}
+.theme-icon-dark{display:inline;vertical-align:middle}.theme-icon-light{display:none;vertical-align:middle}[data-theme=dark] .theme-icon-dark{display:none}[data-theme=dark] .theme-icon-light{display:inline}</style></head>
 <body><button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>
-<h1><img src="/icon.png" style="height:1em;vertical-align:middle;margin-right:0.35em;display:inline">plan-present</h1>
+<h1><img src="/icon_dark.png" class="theme-icon-dark" style="height:1em;margin-right:0.35em"><img src="/icon_light.png" class="theme-icon-light" style="height:1em;margin-right:0.35em">plan-present</h1>
 <p>No documents registered yet.</p>
 <p>Register a markdown file with:</p>
 <pre><code>curl -X POST ${tailscaleUrl}/open \\
@@ -329,7 +330,7 @@ document.getElementById('theme-btn').addEventListener('click',function(){apply(!
     .join("\n");
 
   res.send(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"><link rel="icon" href="/icon.png"><title>plan-present</title>
+<html><head><meta charset="utf-8"><link rel="icon" href="/icon_dark.png"><title>plan-present</title>
 <script>(function(){try{var t=localStorage.getItem('plan-present-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})()</script>
 <style>:root{--bg:#fff;--fg:#333;--fg-muted:#666;--surface:#f4f4f4;--border:#eee;--link:#0066cc;--btn-bg:#f5f5f5;--btn-border:#ccc;--btn-fg:#444;--sel-bg:#fafafa;--sort-fg:#999;--prio-bg:#fff;--prio-fg:#666;--prio-border:#ddd}[data-theme=dark]{--bg:#1a1a1a;--fg:#d8d8d8;--fg-muted:#aaa;--surface:#252525;--border:#333;--link:#5599ee;--btn-bg:#2a2a2a;--btn-border:#444;--btn-fg:#bbb;--sel-bg:#2a2a2a;--sort-fg:#666;--prio-bg:#252525;--prio-fg:#aaa;--prio-border:#444}
 body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:var(--fg);background:var(--bg)}
@@ -358,9 +359,10 @@ th.prio-col,td.prio-col{width:46px;text-align:center;padding-left:2px;padding-ri
 .prio-select{font-size:0.85rem;padding:1px 2px;border:1px solid var(--prio-border);border-radius:3px;background:var(--prio-bg);color:var(--prio-fg);cursor:pointer}
 tr[data-priority]:not([data-priority=""]) .prio-select{background:#ffe4c4;color:#7a3b00;border-color:#e89a4f;font-weight:600}
 .prio-select:disabled{cursor:wait;opacity:0.6}
-.btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}</style></head>
+.btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}
+.theme-icon-dark{display:inline;vertical-align:middle}.theme-icon-light{display:none;vertical-align:middle}[data-theme=dark] .theme-icon-dark{display:none}[data-theme=dark] .theme-icon-light{display:inline}</style></head>
 <body><button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>
-<h1><img src="/icon.png" style="height:1em;vertical-align:middle;margin-right:0.35em;display:inline">plan-present</h1>
+<h1><img src="/icon_dark.png" class="theme-icon-dark" style="height:1em;margin-right:0.35em"><img src="/icon_light.png" class="theme-icon-light" style="height:1em;margin-right:0.35em">plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
 <tr><th class="pin-col" title="Pinned">\u{1F4CC}</th><th class="prio-col" title="Priority pin (1-5)">#</th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th class="copy-col" title="Copy pathname">Copy<br>Pathname</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>

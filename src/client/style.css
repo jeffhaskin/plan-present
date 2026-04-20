@@ -403,6 +403,12 @@ body {
   cursor: default;
 }
 
+/* Theme-aware icon: dark icon shown in light mode, light icon shown in dark mode */
+.theme-icon-dark  { display: inline; vertical-align: middle; }
+.theme-icon-light { display: none;   vertical-align: middle; }
+[data-theme="dark"] .theme-icon-dark  { display: none; }
+[data-theme="dark"] .theme-icon-light { display: inline; }
+
 /* Dark mode toggle button */
 .btn-theme-toggle {
   position: fixed;
