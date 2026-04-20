@@ -12,6 +12,7 @@ import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import { useAutosave } from "./useAutosave";
 import type { DocResponse } from "../shared/types";
+import { ThemeToggle } from "./App";
 import "./style.css";
 
 const lowlight = createLowlight(common);
@@ -324,6 +325,7 @@ export default function Editor({ slug }: { slug: string }) {
             {absolutePath}
           </span>
           <PathCopyButton path={absolutePath} slug={slug} />
+          <ThemeToggle compact />
         </div>
       )}
       <header className="editor-header">

@@ -434,6 +434,25 @@ body {
   color: var(--fg);
 }
 
+.btn-theme-toggle--compact {
+  position: static;
+  top: auto;
+  right: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: transparent;
+  border-color: transparent;
+  color: var(--fg-muted);
+}
+
+.btn-theme-toggle--compact:hover {
+  background: var(--btn-hover);
+  border-color: var(--btn-border);
+  color: var(--fg);
+}
+
 /* Editor structural elements */
 .editor-path-bar {
   display: flex;
