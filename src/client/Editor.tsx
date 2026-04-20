@@ -15,6 +15,55 @@ import type { DocResponse } from "../shared/types";
 import "./style.css";
 
 const lowlight = createLowlight(common);
+
+const COPY_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const CHECK_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through to legacy path
+  }
+  // Legacy fallback: hidden textarea + execCommand('copy'). Works over plain HTTP.
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.top = "0";
+  ta.style.left = "0";
+  ta.style.width = "1px";
+  ta.style.height = "1px";
+  ta.style.padding = "0";
+  ta.style.border = "none";
+  ta.style.outline = "none";
+  ta.style.boxShadow = "none";
+  ta.style.background = "transparent";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  const selection = document.getSelection();
+  const savedRange = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  if (savedRange && selection) {
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+  }
+  return ok;
+}
 const DEFAULT_CONTENT_WIDTH_REM = 48;
 const MIN_CONTENT_WIDTH_REM = 36;
 const MAX_CONTENT_WIDTH_REM = 80;
@@ -53,6 +102,62 @@ export default function Editor({ slug }: { slug: string }) {
       editor.setEditable(!readOnly);
     }
   }, [editor, readOnly]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const root = editor.view.dom as HTMLElement;
+    let frame = 0;
+
+    function inject() {
+      const pres = root.querySelectorAll("pre");
+      pres.forEach((pre) => {
+        if (pre.querySelector(":scope > .copy-btn")) return;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "copy-btn";
+        btn.contentEditable = "false";
+        btn.setAttribute("aria-label", "Copy");
+        btn.title = "Copy";
+        btn.innerHTML = COPY_SVG;
+        btn.addEventListener("mousedown", (e) => e.preventDefault());
+        btn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const code = pre.querySelector("code");
+          const text = code?.textContent ?? pre.textContent ?? "";
+          const ok = await copyText(text);
+          if (ok) {
+            btn.classList.add("copied");
+            btn.innerHTML = CHECK_SVG;
+            setTimeout(() => {
+              btn.classList.remove("copied");
+              btn.innerHTML = COPY_SVG;
+            }, 1200);
+          } else {
+            btn.classList.add("error");
+            setTimeout(() => btn.classList.remove("error"), 1200);
+          }
+        });
+        pre.appendChild(btn);
+      });
+    }
+
+    function schedule() {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        inject();
+      });
+    }
+
+    inject();
+    const obs = new MutationObserver(schedule);
+    obs.observe(root, { childList: true, subtree: true });
+    return () => {
+      obs.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [editor]);
 
   useEffect(() => {
     const savedWidth = window.localStorage.getItem(CONTENT_WIDTH_STORAGE_KEY);
@@ -216,19 +321,30 @@ export default function Editor({ slug }: { slug: string }) {
       {absolutePath && (
         <div
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
             padding: "4px 16px",
             background: "#f4f4f4",
-            fontFamily: "monospace",
-            fontSize: "12px",
-            color: "#555",
             borderBottom: "1px solid #e0e0e0",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
           }}
-          title={absolutePath}
         >
-          {absolutePath}
+          <span
+            title={absolutePath}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontFamily: "monospace",
+              fontSize: "12px",
+              color: "#555",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {absolutePath}
+          </span>
+          <PathCopyButton path={absolutePath} slug={slug} />
         </div>
       )}
       <header
@@ -348,6 +464,76 @@ export default function Editor({ slug }: { slug: string }) {
       </div>
       <SaveIndicator status={autosave.status} message={autosave.message} />
     </div>
+  );
+}
+
+function PathCopyButton({ path, slug }: { path: string; slug: string }) {
+  const [state, setState] = useState<"idle" | "copied" | "error">("idle");
+  async function onClick() {
+    const ok = await copyText(`${path} (${slug})`);
+    setState(ok ? "copied" : "error");
+    setTimeout(() => setState("idle"), 1200);
+  }
+  const palette =
+    state === "copied"
+      ? { bg: "#f1f9f1", fg: "#2a7a2a", border: "#7ab77a" }
+      : state === "error"
+      ? { bg: "#fdf1ee", fg: "#cc3300", border: "#e0a090" }
+      : { bg: "transparent", fg: "#666", border: "transparent" };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
+      title="Copy full path (with slug)"
+      aria-label="Copy full path"
+      style={{
+        flexShrink: 0,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 22,
+        height: 22,
+        padding: 0,
+        background: palette.bg,
+        color: palette.fg,
+        border: `1px solid ${palette.border}`,
+        borderRadius: 4,
+        cursor: "pointer",
+        lineHeight: 0,
+      }}
+    >
+      {state === "copied" ? (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          width="13"
+          height="13"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          width="13"
+          height="13"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
   );
 }
 

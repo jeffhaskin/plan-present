@@ -292,11 +292,25 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}pre{background:#f4f4f4
       )
       .join("");
 
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const fmtTs = (iso: string) => {
+    const t = new Date(iso);
+    if (Number.isNaN(t.getTime())) return iso;
+    return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())} ${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`;
+  };
+
+  const escAttr = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+  const COPY_SVG =
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='13' height='13' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='13' height='13' rx='2' ry='2'/><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/></svg>";
+  const CHECK_SVG =
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='13' height='13' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>";
+
   const rows = docs
-    .map(
-      (d) =>
-        `<tr data-pinned="${d.pinned ? "true" : "false"}" data-priority="${d.priorityPin ?? ""}"><td class="pin-col"><button class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">\u{1F4CC}</button></td><td class="prio-col"><select class="prio-select" data-slug="${d.slug}" title="Priority pin (1-5)" aria-label="Priority pin">${prioOptions(d.priorityPin)}</select></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td class="dir"><code>${path.dirname(d.absolutePath)}</code></td><td><code>${d.slug}</code></td><td>${d.registeredAt}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`,
-    )
+    .map((d) => {
+      const dir = path.dirname(d.absolutePath);
+      return `<tr data-pinned="${d.pinned ? "true" : "false"}" data-priority="${d.priorityPin ?? ""}"><td class="pin-col"><button class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">\u{1F4CC}</button></td><td class="prio-col"><select class="prio-select" data-slug="${d.slug}" title="Priority pin (1-5)" aria-label="Priority pin">${prioOptions(d.priorityPin)}</select></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td class="dir"><code>${dir}</code></td><td class="copy-col"><button type="button" class="dir-copy-btn" data-path="${escAttr(d.absolutePath)}" title="Copy pathname" aria-label="Copy pathname">${COPY_SVG}</button></td><td>${fmtTs(d.registeredAt)}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`;
+    })
     .join("\n");
 
   res.send(`<!DOCTYPE html>
@@ -311,6 +325,11 @@ code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
 .action-btn:disabled{background:#aaa!important;cursor:not-allowed}
 thead tr:last-child th{padding-top:4px;padding-bottom:6px;border-bottom:1px solid #eee}
 td.dir{width:14ch;min-width:14ch;max-width:14ch;white-space:normal;word-break:break-all}
+th.copy-col,td.copy-col{text-align:center;padding-left:8px;padding-right:8px;white-space:nowrap}
+.dir-copy-btn{display:inline-flex;align-items:center;justify-content:center;background:none;border:1px solid transparent;border-radius:3px;padding:2px;cursor:pointer;color:#999;line-height:0;transition:color 0.12s,border-color 0.12s,background 0.12s}
+.dir-copy-btn:hover{color:#333;border-color:#ccc;background:#fafafa}
+.dir-copy-btn.copied{color:#2a7a2a;border-color:#7ab77a;background:#f1f9f1}
+.dir-copy-btn.error{color:#cc3300;border-color:#e0a090;background:#fdf1ee}
 .sort-btn{background:none;border:none;cursor:pointer;font-size:0.8rem;padding:0 3px;color:#999;vertical-align:middle}
 .sort-btn:hover{color:#333}
 th.pin-col,td.pin-col{width:36px;text-align:center;padding-left:4px;padding-right:4px}
@@ -320,13 +339,13 @@ th.pin-col,td.pin-col{width:36px;text-align:center;padding-left:4px;padding-righ
 .pin-btn:disabled{cursor:wait}
 th.prio-col,td.prio-col{width:46px;text-align:center;padding-left:2px;padding-right:2px}
 .prio-select{font-size:0.85rem;padding:1px 2px;border:1px solid #ddd;border-radius:3px;background:#fff;color:#666;cursor:pointer}
-tr[data-priority]:not([data-priority=""]) .prio-select{background:#fff7c2;color:#333;border-color:#e0c96a;font-weight:600}
+tr[data-priority]:not([data-priority=""]) .prio-select{background:#ffe4c4;color:#7a3b00;border-color:#e89a4f;font-weight:600}
 .prio-select:disabled{cursor:wait;opacity:0.6}</style></head>
 <body><h1>plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
-<tr><th class="pin-col" title="Pinned">\u{1F4CC}</th><th class="prio-col" title="Priority pin (1-5)">#</th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Slug</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
-<tr><th class="pin-col"></th><th class="prio-col"></th><th></th><th></th><th></th><th></th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"></th></tr>
+<tr><th class="pin-col" title="Pinned">\u{1F4CC}</th><th class="prio-col" title="Priority pin (1-5)">#</th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th class="copy-col" title="Copy pathname">Copy<br>Pathname</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
+<tr><th class="pin-col"></th><th class="prio-col"></th><th></th><th></th><th class="copy-col"></th><th></th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"></th></tr>
 </thead>
 <tbody>${rows}</tbody></table>
 <script>
@@ -416,6 +435,44 @@ function applySort(col) {
 document.getElementById('sort-file').addEventListener('click', () => applySort('file'));
 document.getElementById('sort-dir').addEventListener('click', () => applySort('dir'));
 document.getElementById('sort-reg').addEventListener('click', () => applySort('reg'));
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) {}
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '0';
+  ta.style.left = '0';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+const COPY_SVG_JS = \`${COPY_SVG}\`;
+const CHECK_SVG_JS = \`${CHECK_SVG}\`;
+document.querySelectorAll('.dir-copy-btn').forEach(btn => {
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const p = btn.dataset.path;
+    const ok = await copyText(p);
+    if (ok) {
+      btn.classList.add('copied');
+      btn.innerHTML = CHECK_SVG_JS;
+      setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = COPY_SVG_JS; }, 1200);
+    } else {
+      btn.classList.add('error');
+      setTimeout(() => btn.classList.remove('error'), 1200);
+    }
+  });
+});
 function applyRowState(row, pinned, priority) {
   row.dataset.pinned = pinned ? 'true' : 'false';
   row.dataset.priority = priority == null ? '' : String(priority);
