@@ -11,7 +11,7 @@ import {
   listDocuments,
   removeDocument,
   setPinned,
-  setPriorityPin,
+  movePriority,
   loadFromDisk,
 } from "./registry";
 import { saveWithConflictDetection } from "./conflict";
@@ -124,6 +124,7 @@ app.get("/api/docs", (_req, res) => {
   const docs = listDocuments().map((entry) => ({
     slug: entry.slug,
     fileName: entry.originalBaseName,
+    absolutePath: entry.absolutePath,
     url: `http://${tailscaleHost}:${PORT}/doc/${entry.slug}`,
   }));
   res.json(docs);
@@ -176,37 +177,42 @@ app.put("/api/doc/:slug", (req, res) => {
   });
 });
 
-// POST /api/doc/:slug/pin — set the pinned flag on a document
+// POST /api/doc/:slug/pin — pin or unpin (pinning appends the next priority slot)
 app.post("/api/doc/:slug/pin", (req, res) => {
   const { pinned } = req.body;
   if (typeof pinned !== "boolean") {
     res.status(400).json({ error: "pinned (boolean) is required" });
     return;
   }
-  const entry = setPinned(req.params.slug, pinned);
-  if (!entry) {
-    res.status(404).json({ error: "Document not found" });
-    return;
-  }
-  res.json({ pinned: !!entry.pinned, priorityPin: entry.priorityPin ?? null });
-});
-
-// POST /api/doc/:slug/priority-pin — set or clear the priority-pin slot (1-5)
-app.post("/api/doc/:slug/priority-pin", (req, res) => {
-  const { priority } = req.body;
-  if (priority !== null && !(Number.isInteger(priority) && priority >= 1 && priority <= 5)) {
-    res.status(400).json({ error: "priority must be null or an integer 1-5" });
-    return;
-  }
-  let result;
-  try {
-    result = setPriorityPin(req.params.slug, priority);
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
-    return;
-  }
+  const result = setPinned(req.params.slug, pinned);
   if (!result) {
     res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  res.json({
+    entry: {
+      slug: result.entry.slug,
+      pinned: !!result.entry.pinned,
+      priorityPin: result.entry.priorityPin ?? null,
+    },
+    affected: result.affected.map((e) => ({
+      slug: e.slug,
+      pinned: !!e.pinned,
+      priorityPin: e.priorityPin ?? null,
+    })),
+  });
+});
+
+// POST /api/doc/:slug/pin/move — swap priority with the nearest pinned neighbor
+app.post("/api/doc/:slug/pin/move", (req, res) => {
+  const { direction } = req.body;
+  if (direction !== "up" && direction !== "down") {
+    res.status(400).json({ error: "direction must be 'up' or 'down'" });
+    return;
+  }
+  const result = movePriority(req.params.slug, direction);
+  if (!result) {
+    res.status(404).json({ error: "Document not found or not prioritized" });
     return;
   }
   res.json({
@@ -300,14 +306,6 @@ document.getElementById('theme-btn').addEventListener('click',function(){apply(!
     return;
   }
 
-  const prioOptions = (p?: number) =>
-    ["", "1", "2", "3", "4", "5"]
-      .map(
-        (v) =>
-          `<option value="${v}"${(p ?? "") === (v === "" ? "" : Number(v)) ? " selected" : ""}>${v === "" ? "\u2014" : v}</option>`,
-      )
-      .join("");
-
   const pad = (n: number) => String(n).padStart(2, "0");
   const fmtTs = (iso: string) => {
     const t = new Date(iso);
@@ -321,11 +319,15 @@ document.getElementById('theme-btn').addEventListener('click',function(){apply(!
     "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='13' height='13' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='13' height='13' rx='2' ry='2'/><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/></svg>";
   const CHECK_SVG =
     "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='13' height='13' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>";
+  const RESET_SVG =
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='23 4 23 10 17 10'/><polyline points='1 20 1 14 7 14'/><path d='M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15'/></svg>";
+  const TRASH_SVG =
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/><line x1='10' y1='11' x2='10' y2='17'/><line x1='14' y1='11' x2='14' y2='17'/></svg>";
 
   const rows = docs
     .map((d) => {
       const dir = path.dirname(d.absolutePath);
-      return `<tr data-pinned="${d.pinned ? "true" : "false"}" data-priority="${d.priorityPin ?? ""}"><td class="pin-col"><button class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">\u{1F4CC}</button></td><td class="prio-col"><select class="prio-select" data-slug="${d.slug}" title="Priority pin (1-5)" aria-label="Priority pin">${prioOptions(d.priorityPin)}</select></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td class="dir"><code>${dir}</code></td><td class="copy-col"><button type="button" class="dir-copy-btn" data-path="${escAttr(d.absolutePath)}" title="Copy pathname" aria-label="Copy pathname">${COPY_SVG}</button></td><td>${fmtTs(d.registeredAt)}</td><td style="text-align:center"><input type="checkbox" class="doc-check" data-slug="${d.slug}"></td><td style="text-align:center"><input type="checkbox" class="file-check" data-slug="${d.slug}"></td></tr>`;
+      return `<tr data-pinned="${d.pinned ? "true" : "false"}" data-priority="${d.priorityPin ?? ""}" data-name="${escAttr(d.originalBaseName)}"><td class="pin-col"><div class="pin-controls"><button type="button" class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">\u{1F4CC}</button><button type="button" class="prio-move prio-up" data-slug="${d.slug}" data-direction="up" title="Move up"${d.pinned ? "" : " disabled"}>\u25B2</button><button type="button" class="prio-move prio-down" data-slug="${d.slug}" data-direction="down" title="Move down"${d.pinned ? "" : " disabled"}>\u25BC</button></div></td><td class="actions-col"><button type="button" class="row-action row-reset" data-slug="${d.slug}" title="Deregister (remove from list; file stays on disk)" aria-label="Deregister">${RESET_SVG}</button><button type="button" class="row-action row-delete" data-slug="${d.slug}" title="Delete file from disk" aria-label="Delete file">${TRASH_SVG}</button><button type="button" class="row-action dir-copy-btn" data-path="${escAttr(d.absolutePath)}" title="Copy full pathname" aria-label="Copy full pathname">${COPY_SVG}</button></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td class="dir"><code>${dir}</code></td><td>${fmtTs(d.registeredAt)}</td></tr>`;
     })
     .join("\n");
 
@@ -337,79 +339,71 @@ body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:var
 table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)}
 th{font-weight:600}a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
 code{background:var(--surface);padding:2px 6px;border-radius:3px}
-.action-btn{color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:0.85rem}
-#deregister-btn{background:#cc2222}#deregister-btn:hover{background:#aa1111}
-#delete-btn{background:#881111}#delete-btn:hover{background:#660000}
-.action-btn:disabled{background:#aaa!important;cursor:not-allowed}
-thead tr:last-child th{padding-top:4px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+th.actions-col,td.actions-col{width:84px;text-align:center;padding-left:4px;padding-right:4px;white-space:nowrap}
+.row-action{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;margin:0 1px;background:none;border:1px solid transparent;border-radius:3px;cursor:pointer;color:var(--sort-fg);line-height:0;transition:color 0.12s,background 0.12s,border-color 0.12s}
+.row-action:hover{color:var(--fg);background:var(--sel-bg);border-color:var(--btn-border)}
+.row-reset:hover{color:#cc7700;border-color:#e0a060}
+.row-delete:hover{color:#cc2222;border-color:#e09090;background:#fdf1ee}
+[data-theme=dark] .row-delete:hover{background:#3a1a1a}
+.row-action:disabled{opacity:0.35;cursor:wait}
 td.dir{white-space:normal;word-break:break-all}
-th.copy-col,td.copy-col{text-align:center;padding-left:8px;padding-right:8px;white-space:nowrap}
-.dir-copy-btn{display:inline-flex;align-items:center;justify-content:center;background:none;border:1px solid transparent;border-radius:3px;padding:2px;cursor:pointer;color:var(--sort-fg);line-height:0;transition:color 0.12s,border-color 0.12s,background 0.12s}
-.dir-copy-btn:hover{color:var(--fg);border-color:var(--btn-border);background:var(--sel-bg)}
 .dir-copy-btn.copied{color:#2a7a2a;border-color:#7ab77a;background:#f1f9f1}
 .dir-copy-btn.error{color:#cc3300;border-color:#e0a090;background:#fdf1ee}
 .sort-btn{background:none;border:none;cursor:pointer;font-size:0.8rem;padding:0 3px;color:var(--sort-fg);vertical-align:middle}
 .sort-btn:hover{color:var(--fg)}
-th.pin-col,td.pin-col{width:36px;text-align:center;padding-left:4px;padding-right:4px}
+th.pin-col,td.pin-col{width:80px;padding-left:8px;padding-right:4px}
+th.pin-col{text-align:center}
+.pin-controls{display:flex;align-items:center;gap:2px;justify-content:flex-start}
 .pin-btn{background:none;border:none;cursor:pointer;font-size:1.05rem;padding:2px 4px;line-height:1;opacity:0.22;filter:grayscale(1);transition:opacity 0.15s,filter 0.15s,transform 0.15s;transform:rotate(35deg)}
 .pin-btn:hover{opacity:0.55}
 .pin-btn.pinned{opacity:1;filter:none;transform:rotate(0deg)}
 .pin-btn:disabled{cursor:wait}
-th.prio-col,td.prio-col{width:46px;text-align:center;padding-left:2px;padding-right:2px}
-.prio-select{font-size:0.85rem;padding:1px 2px;border:1px solid var(--prio-border);border-radius:3px;background:var(--prio-bg);color:var(--prio-fg);cursor:pointer}
-tr[data-priority]:not([data-priority=""]) .prio-select{background:#ffe4c4;color:#7a3b00;border-color:#e89a4f;font-weight:600}
-.prio-select:disabled{cursor:wait;opacity:0.6}
+.prio-move{background:none;border:1px solid transparent;border-radius:3px;padding:0 3px;cursor:pointer;font-size:0.7rem;line-height:1;color:var(--prio-fg);opacity:0.7;transition:opacity 0.12s,background 0.12s,border-color 0.12s}
+.prio-move:hover:not(:disabled){opacity:1;background:var(--sel-bg);border-color:var(--btn-border);color:var(--fg)}
+.prio-move:disabled{opacity:0.18;cursor:default}
+tr[data-pinned="false"] .prio-move{display:none}
 .btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}
 .theme-icon-light{display:inline;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(0,0,0,0.25))}.theme-icon-dark{display:none;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(255,255,255,0.25))}[data-theme=dark] .theme-icon-light{display:none}[data-theme=dark] .theme-icon-dark{display:inline}</style></head>
 <body><button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>
 <h1><img src="/icon_dark.png" class="theme-icon-dark" style="height:1em;margin-right:0.35em"><img src="/icon_light.png" class="theme-icon-light" style="height:1em;margin-right:0.35em">plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
-<tr><th class="pin-col" title="Pinned">\u{1F4CC}</th><th class="prio-col" title="Priority pin (1-5)">#</th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th class="copy-col" title="Copy pathname">Copy<br>Pathname</th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th><th style="text-align:center"><button id="deregister-btn" class="action-btn" disabled>Deregister</button></th><th style="text-align:center"><button id="delete-btn" class="action-btn" disabled>Delete File</button></th></tr>
-<tr><th class="pin-col"></th><th class="prio-col"></th><th></th><th></th><th class="copy-col"></th><th></th><th style="text-align:center"><input type="checkbox" id="doc-all" title="Select all"></th><th style="text-align:center"><input type="checkbox" id="file-all" title="Select all"></th></tr>
+<tr><th class="pin-col" title="Pinned (up/down to reorder)">\u{1F4CC}</th><th class="actions-col" title="Deregister / Delete / Copy path"></th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th></tr>
 </thead>
 <tbody>${rows}</tbody></table>
 <script>
-const deregBtn = document.getElementById('deregister-btn');
-const delBtn = document.getElementById('delete-btn');
-const docAll = document.getElementById('doc-all');
-const fileAll = document.getElementById('file-all');
-const docChecks = () => Array.from(document.querySelectorAll('.doc-check'));
-const fileChecks = () => Array.from(document.querySelectorAll('.file-check'));
-function syncState() {
-  deregBtn.disabled = !docChecks().some(c => c.checked);
-  delBtn.disabled = !fileChecks().some(c => c.checked);
-  docAll.checked = docChecks().length > 0 && docChecks().every(c => c.checked);
-  fileAll.checked = fileChecks().length > 0 && fileChecks().every(c => c.checked);
-}
-document.addEventListener('change', e => {
-  if (e.target === docAll) docChecks().forEach(c => c.checked = docAll.checked);
-  if (e.target === fileAll) fileChecks().forEach(c => c.checked = fileAll.checked);
-  syncState();
+document.querySelectorAll('.row-reset').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const slug = btn.dataset.slug;
+    btn.disabled = true;
+    const resp = await fetch('/api/doc/' + slug, {method: 'DELETE'});
+    if (resp.ok) {
+      window.location.reload();
+    } else {
+      btn.disabled = false;
+    }
+  });
 });
-deregBtn.addEventListener('click', async () => {
-  const selected = docChecks().filter(c => c.checked).map(c => c.dataset.slug);
-  if (!selected.length) return;
-  deregBtn.disabled = true;
-  deregBtn.textContent = 'Deregistering\u2026';
-  await Promise.all(selected.map(slug => fetch('/api/doc/' + slug, {method:'DELETE'})));
-  window.location.reload();
+document.querySelectorAll('.row-delete').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const slug = btn.dataset.slug;
+    const row = btn.closest('tr');
+    const name = row?.dataset.name || slug;
+    if (!confirm('Permanently delete "' + name + '" from disk?')) return;
+    btn.disabled = true;
+    const resp = await fetch('/api/doc/' + slug + '/file', {method: 'DELETE'});
+    if (resp.ok) {
+      window.location.reload();
+    } else {
+      btn.disabled = false;
+    }
+  });
 });
-delBtn.addEventListener('click', async () => {
-  const selected = fileChecks().filter(c => c.checked).map(c => c.dataset.slug);
-  if (!selected.length) return;
-  const names = selected.map(slug => fileChecks().find(c => c.dataset.slug === slug)?.closest('tr')?.querySelector('a')?.textContent).join(', ');
-  if (!confirm('Permanently delete ' + selected.length + ' file(s) from disk?\\n\\n' + names)) return;
-  delBtn.disabled = true;
-  delBtn.textContent = 'Deleting\u2026';
-  await Promise.all(selected.map(slug => fetch('/api/doc/' + slug + '/file', {method:'DELETE'})));
-  window.location.reload();
-});
-// Sort (pin col = 0, priority col = 1; priority pins float above regular pins which float above the rest)
+// Sort (pin col = 0, actions col = 1; pinned rows float above the rest, ordered by priority slot)
 const tbody = document.querySelector('tbody');
 const origRows = Array.from(tbody.rows);
 const origIndex = new Map(origRows.map((r, i) => [r, i]));
-const COL_IDX = {file: 2, dir: 3, reg: 5};
+const COL_IDX = {file: 2, dir: 3, reg: 4};
 const sortState = {file: null, dir: null, reg: 'desc'};
 const ICONS = {null: '\u21c5', asc: '\u2191', desc: '\u2193'};
 function priorityOf(row) {
@@ -503,8 +497,40 @@ function applyRowState(row, pinned, priority) {
     btn.title = pinned ? 'Unpin' : 'Pin';
     btn.setAttribute('aria-label', btn.title);
   }
-  const sel = row.querySelector('.prio-select');
-  if (sel) sel.value = priority == null ? '' : String(priority);
+}
+function updateMoveButtons() {
+  const pinnedRows = Array.from(document.querySelectorAll('tbody tr'))
+    .filter(r => r.dataset.priority && r.dataset.priority !== '')
+    .map(r => ({ row: r, p: Number(r.dataset.priority) }));
+  pinnedRows.sort((a, b) => a.p - b.p);
+  const minP = pinnedRows.length ? pinnedRows[0].p : null;
+  const maxP = pinnedRows.length ? pinnedRows[pinnedRows.length - 1].p : null;
+  document.querySelectorAll('tbody tr').forEach(row => {
+    const up = row.querySelector('.prio-up');
+    const down = row.querySelector('.prio-down');
+    const p = row.dataset.priority ? Number(row.dataset.priority) : null;
+    if (!up || !down) return;
+    if (p == null) {
+      up.disabled = true;
+      down.disabled = true;
+    } else {
+      up.disabled = p === minP;
+      down.disabled = p === maxP;
+    }
+  });
+}
+function findRowBySlug(slug) {
+  const el = document.querySelector('.pin-btn[data-slug="' + slug + '"]');
+  return el ? el.closest('tr') : null;
+}
+async function applyPinResponse(row, data) {
+  applyRowState(row, data.entry.pinned, data.entry.priorityPin);
+  for (const aff of (data.affected || [])) {
+    const other = findRowBySlug(aff.slug);
+    if (other) applyRowState(other, aff.pinned, aff.priorityPin);
+  }
+  rebuildOrder();
+  updateMoveButtons();
 }
 document.querySelectorAll('.pin-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
@@ -520,43 +546,33 @@ document.querySelectorAll('.pin-btn').forEach(btn => {
       });
       if (!resp.ok) return;
       const data = await resp.json();
-      applyRowState(row, data.pinned, data.priorityPin);
-      rebuildOrder();
+      await applyPinResponse(row, data);
     } finally {
       btn.disabled = false;
     }
   });
 });
-document.querySelectorAll('.prio-select').forEach(sel => {
-  sel.addEventListener('change', async () => {
-    const slug = sel.dataset.slug;
-    const row = sel.closest('tr');
-    const raw = sel.value;
-    const priority = raw === '' ? null : Number(raw);
-    sel.disabled = true;
+document.querySelectorAll('.prio-move').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const slug = btn.dataset.slug;
+    const direction = btn.dataset.direction;
+    const row = btn.closest('tr');
+    btn.disabled = true;
     try {
-      const resp = await fetch('/api/doc/' + slug + '/priority-pin', {
+      const resp = await fetch('/api/doc/' + slug + '/pin/move', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({priority}),
+        body: JSON.stringify({direction}),
       });
-      if (!resp.ok) {
-        // Revert the select to the row's current state on failure
-        sel.value = row.dataset.priority || '';
-        return;
-      }
+      if (!resp.ok) return;
       const data = await resp.json();
-      applyRowState(row, data.entry.pinned, data.entry.priorityPin);
-      for (const aff of (data.affected || [])) {
-        const other = document.querySelector('.prio-select[data-slug="' + aff.slug + '"]');
-        if (other) applyRowState(other.closest('tr'), aff.pinned, aff.priorityPin);
-      }
-      rebuildOrder();
+      await applyPinResponse(row, data);
     } finally {
-      sel.disabled = false;
+      // updateMoveButtons will refresh disabled state
     }
   });
 });
+updateMoveButtons();
 
 (function(){
 var SOLID="M272 384c9.6-31.9 29.5-59.1 49.2-86.2c0 0 0 0 0 0c5.2-7.1 10.4-14.2 15.4-21.4c19.8-28.5 31.4-63 31.4-100.3C368 78.8 289.2 0 192 0S16 78.8 16 176c0 37.3 11.6 71.9 31.4 100.3c5 7.2 10.2 14.3 15.4 21.4c0 0 0 0 0 0c19.8 27.1 39.7 54.4 49.2 86.2l160 0zM192 512c44.2 0 80-35.8 80-80l0-16-160 0 0 16c0 44.2 35.8 80 80 80zM112 176c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-61.9 50.1-112 112-112c8.8 0 16 7.2 16 16s-7.2 16-16 16c-44.2 0-80 35.8-80 80z";

@@ -372,6 +372,26 @@ body {
   cursor: default;
 }
 
+.btn-home {
+  background: #fff3b0;
+  border-color: #e6d77a;
+  color: #333;
+}
+
+.btn-home:hover {
+  background: #fde98c;
+}
+
+[data-theme="dark"] .btn-home {
+  background: #8a6100;
+  border-color: #b8860b;
+  color: #fff;
+}
+
+[data-theme="dark"] .btn-home:hover {
+  background: #a07500;
+}
+
 .btn-delete {
   padding: 8px 20px;
   font-size: 15px;
@@ -464,7 +484,7 @@ body {
 }
 
 .editor-path-text {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   font-family: monospace;
   font-size: 12px;
@@ -472,6 +492,10 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.editor-path-bar > .btn-theme-toggle--compact {
+  margin-left: auto;
 }
 
 .editor-header {

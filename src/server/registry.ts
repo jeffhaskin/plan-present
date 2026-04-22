@@ -43,8 +43,25 @@ export function loadFromDisk(): number {
       byPath.set(entry.absolutePath, entry.slug);
       loaded++;
     }
+
+    // Migration: every pinned entry must have a priorityPin slot.
+    const taken = new Set<number>();
+    for (const entry of bySlug.values()) {
+      if (typeof entry.priorityPin === "number") taken.add(entry.priorityPin);
+    }
+    let migrated = false;
+    for (const entry of bySlug.values()) {
+      if (entry.pinned && typeof entry.priorityPin !== "number") {
+        let slot = 1;
+        while (taken.has(slot)) slot++;
+        entry.priorityPin = slot;
+        taken.add(slot);
+        migrated = true;
+      }
+    }
+
     // Persist the pruned list so stale entries are removed from disk
-    if (loaded < entries.length) {
+    if (loaded < entries.length || migrated) {
       persistToDisk();
     }
     return loaded;
@@ -108,72 +125,86 @@ export function listDocuments(): RegistryEntry[] {
   return Array.from(bySlug.values());
 }
 
-export function setPinned(slug: string, pinned: boolean): RegistryEntry | undefined {
-  const entry = bySlug.get(slug);
-  if (!entry) return undefined;
-  entry.pinned = pinned;
-  if (!pinned) {
-    delete entry.priorityPin;
-  }
-  persistToDisk();
-  return entry;
-}
-
-export function setPriorityPin(
+export function setPinned(
   slug: string,
-  priority: number | null,
+  pinned: boolean,
 ): { entry: RegistryEntry; affected: RegistryEntry[] } | undefined {
   const entry = bySlug.get(slug);
   if (!entry) return undefined;
 
   const affected: RegistryEntry[] = [];
 
-  if (priority === null) {
-    delete entry.priorityPin;
+  if (pinned) {
+    entry.pinned = true;
+    if (typeof entry.priorityPin !== "number") {
+      const taken = new Set<number>();
+      for (const other of bySlug.values()) {
+        if (typeof other.priorityPin === "number") taken.add(other.priorityPin);
+      }
+      let slot = 1;
+      while (taken.has(slot)) slot++;
+      entry.priorityPin = slot;
+    }
     persistToDisk();
     return { entry, affected };
   }
 
-  if (!Number.isInteger(priority) || priority < 1 || priority > 5) {
-    throw new Error("priority must be null or an integer 1-5");
-  }
+  const cleared = typeof entry.priorityPin === "number" ? entry.priorityPin : null;
+  entry.pinned = false;
+  delete entry.priorityPin;
 
-  // Clear target's current priority so it doesn't participate in the shift below
-  if (typeof entry.priorityPin === "number") {
-    delete entry.priorityPin;
-  }
-
-  const bySlot = new Map<number, RegistryEntry>();
-  for (const other of bySlug.values()) {
-    if (other !== entry && typeof other.priorityPin === "number") {
-      bySlot.set(other.priorityPin, other);
+  if (cleared !== null) {
+    for (const other of bySlug.values()) {
+      if (other === entry) continue;
+      if (typeof other.priorityPin === "number" && other.priorityPin > cleared) {
+        other.priorityPin = other.priorityPin - 1;
+        affected.push(other);
+      }
     }
   }
 
-  // Find contiguous occupied run starting at `priority`
-  let end = priority - 1;
-  while (end + 1 <= 5 && bySlot.has(end + 1)) end++;
-
-  // If the run extends through slot 5, overflow that holder to a regular pin
-  if (end === 5) {
-    const overflow = bySlot.get(5)!;
-    delete overflow.priorityPin;
-    affected.push(overflow);
-    end = 4;
-  }
-
-  // Shift occupied slots [priority..end] down by one (end → end+1, ..., priority → priority+1)
-  for (let k = end; k >= priority; k--) {
-    const occupant = bySlot.get(k);
-    if (!occupant) continue;
-    occupant.priorityPin = k + 1;
-    affected.push(occupant);
-  }
-
-  entry.priorityPin = priority;
-  entry.pinned = true;
   persistToDisk();
   return { entry, affected };
+}
+
+export function movePriority(
+  slug: string,
+  direction: "up" | "down",
+): { entry: RegistryEntry; affected: RegistryEntry[] } | undefined {
+  const entry = bySlug.get(slug);
+  if (!entry || typeof entry.priorityPin !== "number") return undefined;
+  const current = entry.priorityPin;
+
+  let neighbor: RegistryEntry | null = null;
+  if (direction === "up") {
+    let best = 0;
+    for (const other of bySlug.values()) {
+      if (other === entry) continue;
+      if (typeof other.priorityPin === "number" && other.priorityPin < current && other.priorityPin > best) {
+        best = other.priorityPin;
+        neighbor = other;
+      }
+    }
+  } else {
+    let best = Infinity;
+    for (const other of bySlug.values()) {
+      if (other === entry) continue;
+      if (typeof other.priorityPin === "number" && other.priorityPin > current && other.priorityPin < best) {
+        best = other.priorityPin;
+        neighbor = other;
+      }
+    }
+  }
+
+  if (neighbor === null) {
+    return { entry, affected: [] };
+  }
+
+  const neighborSlot = neighbor.priorityPin!;
+  neighbor.priorityPin = current;
+  entry.priorityPin = neighborSlot;
+  persistToDisk();
+  return { entry, affected: [neighbor] };
 }
 
 export function removeDocument(slug: string): boolean {

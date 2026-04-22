@@ -5,7 +5,8 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-let server: ChildProcess;
+let server: ChildProcess | null = null;
+let ownsServer = false;
 let tmpDir: string;
 const PORT = 7979; // Server hardcodes this port
 
@@ -13,15 +14,19 @@ function baseUrl(): string {
   return `http://127.0.0.1:${PORT}`;
 }
 
+async function isServerUp(): Promise<boolean> {
+  try {
+    const res = await fetch(`${baseUrl()}/health`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function waitForServer(timeoutMs = 5000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(`${baseUrl()}/health`);
-      if (res.ok) return;
-    } catch {
-      // not ready yet
-    }
+    if (await isServerUp()) return;
     await new Promise((r) => setTimeout(r, 100));
   }
   throw new Error("Server did not start in time");
@@ -29,6 +34,13 @@ async function waitForServer(timeoutMs = 5000): Promise<void> {
 
 before(async () => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "api-test-"));
+
+  if (await isServerUp()) {
+    // Another server is already bound to PORT (e.g. `tsx watch` dev server).
+    // Re-use it instead of spawning a duplicate that would crash on EADDRINUSE.
+    ownsServer = false;
+    return;
+  }
 
   server = spawn(
     "npx",
@@ -41,12 +53,33 @@ before(async () => {
       stdio: "pipe",
     },
   );
+  ownsServer = true;
 
   await waitForServer();
 });
 
-after(() => {
-  server.kill("SIGTERM");
+after(async () => {
+  // Deregister every doc whose file lives under tmpDir so we don't leave
+  // stale entries when running against a shared dev-server registry.
+  try {
+    const res = await fetch(`${baseUrl()}/api/docs`);
+    if (res.ok) {
+      const docs: { slug: string; absolutePath?: string }[] = await res.json();
+      const tmpPrefix = tmpDir.endsWith(path.sep) ? tmpDir : tmpDir + path.sep;
+      const ours = docs.filter((d) => d.absolutePath && d.absolutePath.startsWith(tmpPrefix));
+      await Promise.all(
+        ours.map((d) =>
+          fetch(`${baseUrl()}/api/doc/${d.slug}`, { method: "DELETE" }).catch(() => undefined),
+        ),
+      );
+    }
+  } catch {
+    // best-effort cleanup; swallow
+  }
+
+  if (ownsServer && server) {
+    server.kill("SIGTERM");
+  }
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 

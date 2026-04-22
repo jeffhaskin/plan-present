@@ -200,6 +200,10 @@ export default function Editor({ slug }: { slug: string }) {
 
         if (editor) {
           editor.commands.setContent(data.content, { emitUpdate: false, contentType: 'markdown' });
+          // Seed the autosave baseline with the editor's own re-serialization of
+          // the loaded content, so phantom "update" events from DOM widget
+          // injection (copy buttons in <pre>) don't flag the doc as dirty.
+          autosave.markClean((editor as any).getMarkdown());
         }
         setLoading(false);
       } catch {
@@ -324,7 +328,7 @@ export default function Editor({ slug }: { slug: string }) {
           <span className="editor-path-text" title={absolutePath}>
             {absolutePath}
           </span>
-          <PathCopyButton path={absolutePath} slug={slug} />
+          <PathCopyButton path={absolutePath} />
           <ThemeToggle compact />
         </div>
       )}
@@ -338,9 +342,8 @@ export default function Editor({ slug }: { slug: string }) {
             <span style={{ color: "#cc3300", fontSize: "13px" }}>{actionError}</span>
           )}
           <button
-            className="btn-save"
+            className="btn-save btn-home"
             onClick={handleHome}
-            style={{ background: "#fff3b0", borderColor: "#e6d77a" }}
           >
             Home
           </button>
@@ -436,10 +439,10 @@ export default function Editor({ slug }: { slug: string }) {
   );
 }
 
-function PathCopyButton({ path, slug }: { path: string; slug: string }) {
+function PathCopyButton({ path }: { path: string }) {
   const [state, setState] = useState<"idle" | "copied" | "error">("idle");
   async function onClick() {
-    const ok = await copyText(`${path} (${slug})`);
+    const ok = await copyText(path);
     setState(ok ? "copied" : "error");
     setTimeout(() => setState("idle"), 1200);
   }
@@ -454,8 +457,8 @@ function PathCopyButton({ path, slug }: { path: string; slug: string }) {
       type="button"
       onClick={onClick}
       onMouseDown={(e) => e.preventDefault()}
-      title="Copy full path (with slug)"
-      aria-label="Copy full path"
+      title="Copy full pathname"
+      aria-label="Copy full pathname"
       style={{
         flexShrink: 0,
         display: "inline-flex",

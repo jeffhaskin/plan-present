@@ -11,6 +11,7 @@ export interface AutosaveStatus {
 
 export interface AutosaveState extends AutosaveStatus {
   save: () => Promise<boolean>;
+  markClean: (content: string) => void;
 }
 
 const DEBOUNCE_MS = 2000;
@@ -28,6 +29,15 @@ export function useAutosave(
   });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
+  // Last content known to match what's on disk. Phantom "update" events
+  // (e.g. DOM mutations from widget injection) produce no markdown change,
+  // so we compare against this baseline before flagging the doc as dirty.
+  const cleanContentRef = useRef<string | null>(null);
+
+  const markClean = useCallback((content: string) => {
+    cleanContentRef.current = content;
+    dirtyRef.current = false;
+  }, []);
 
   const save = useCallback(async (): Promise<boolean> => {
     if (!editor) {
@@ -60,6 +70,7 @@ export function useAutosave(
       baseMtimeRef.current = data.mtime;
 
       dirtyRef.current = false;
+      cleanContentRef.current = content;
 
       if (data.conflict) {
         setState({
@@ -93,6 +104,12 @@ export function useAutosave(
     if (!editor) return;
 
     const handler = () => {
+      // Guard against phantom updates: only flag dirty if the markdown
+      // has actually diverged from the last known-clean content.
+      const current = (editor as any).getMarkdown();
+      if (cleanContentRef.current !== null && current === cleanContentRef.current) {
+        return;
+      }
       dirtyRef.current = true;
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(save, DEBOUNCE_MS);
@@ -125,5 +142,5 @@ export function useAutosave(
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, [editor, slug, baseMtimeRef]);
 
-  return { ...state, save };
+  return { ...state, save, markClean };
 }
