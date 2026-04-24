@@ -598,8 +598,19 @@ document.getElementById('theme-btn').addEventListener('click',function(){applyTh
 </body></html>`);
 });
 
-// SPA serving for /doc/:slug routes — always serve built assets
-const clientDistDir = path.resolve(__dirname, "../../dist/client");
+// SPA serving for /doc/:slug routes — always serve built assets.
+// Resolve the project root by walking up from __dirname until we find
+// package.json, so this works whether running from src/ (tsx dev) or
+// dist/ (built), and regardless of where the repo lives on disk.
+function findProjectRoot(startDir: string): string {
+  let dir = startDir;
+  while (dir !== path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, "package.json"))) return dir;
+    dir = path.dirname(dir);
+  }
+  throw new Error(`Could not find project root from ${startDir} (no package.json ancestor)`);
+}
+const clientDistDir = path.join(findProjectRoot(__dirname), "dist", "client");
 app.use(express.static(clientDistDir));
 
 app.get("/doc/:slug", (req, res) => {
