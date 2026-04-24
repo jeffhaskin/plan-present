@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
@@ -79,6 +79,9 @@ export default function Editor({ slug }: { slug: string }) {
   const [closed, setClosed] = useState(false);
   const [contentWidthRem, setContentWidthRem] = useState(DEFAULT_CONTENT_WIDTH_REM);
   const [readOnly, setReadOnly] = useState(true);
+  const [externalChangesPending, setExternalChangesPending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshingRef = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -223,6 +226,63 @@ export default function Editor({ slug }: { slug: string }) {
     };
   }, [slug, editor]);
 
+  const { markClean, isDirty } = autosave;
+
+  const applyFromServer = useCallback(
+    async (force: boolean) => {
+      if (!editor) return;
+      if (baseMtimeRef.current === 0) return; // initial load hasn't completed
+      if (refreshingRef.current) return;
+      refreshingRef.current = true;
+      setRefreshing(true);
+      try {
+        const res = await fetch(`/api/doc/${slug}`);
+        if (!res.ok) return;
+        const data: DocResponse = await res.json();
+        if (data.mtime === baseMtimeRef.current) {
+          setExternalChangesPending(false);
+          return;
+        }
+        if (!force && isDirty()) {
+          setExternalChangesPending(true);
+          return;
+        }
+        editor.commands.setContent(data.content, { emitUpdate: false, contentType: "markdown" });
+        markClean((editor as any).getMarkdown());
+        baseMtimeRef.current = data.mtime;
+        setExternalChangesPending(false);
+      } catch {
+        // Swallow network errors; the save path's conflict detection is the safety net.
+      } finally {
+        refreshingRef.current = false;
+        setRefreshing(false);
+      }
+    },
+    [editor, slug, isDirty, markClean],
+  );
+
+  useEffect(() => {
+    if (!editor) return;
+    const onFocus = () => {
+      if (document.visibilityState === "visible") applyFromServer(false);
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [editor, applyFromServer]);
+
+  const handleRefreshClick = useCallback(async () => {
+    if (isDirty()) {
+      if (!window.confirm("Discard your unsaved changes and reload this document from disk?")) {
+        return;
+      }
+    }
+    await applyFromServer(true);
+  }, [applyFromServer, isDirty]);
+
   const [closing, setClosing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -329,6 +389,11 @@ export default function Editor({ slug }: { slug: string }) {
             {absolutePath}
           </span>
           <PathCopyButton path={absolutePath} />
+          <RefreshButton
+            onClick={handleRefreshClick}
+            disabled={refreshing}
+            pending={externalChangesPending}
+          />
           <ThemeToggle compact />
         </div>
       )}
@@ -504,6 +569,80 @@ function PathCopyButton({ path }: { path: string }) {
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
         </svg>
+      )}
+    </button>
+  );
+}
+
+function RefreshButton({
+  onClick,
+  disabled,
+  pending,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  pending: boolean;
+}) {
+  const palette = pending
+    ? { bg: "#fff8e6", fg: "#b36b00", border: "#e0b060" }
+    : { bg: "transparent", fg: "#666", border: "transparent" };
+  const title = pending
+    ? "External changes detected — click to reload"
+    : "Reload document from disk";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+      style={{
+        position: "relative",
+        flexShrink: 0,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 22,
+        height: 22,
+        padding: 0,
+        background: palette.bg,
+        color: palette.fg,
+        border: `1px solid ${palette.border}`,
+        borderRadius: 4,
+        cursor: disabled ? "wait" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        lineHeight: 0,
+      }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        width="13"
+        height="13"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polyline points="23 4 23 10 17 10" />
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+      </svg>
+      {pending && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: -2,
+            right: -2,
+            width: 7,
+            height: 7,
+            background: "#cc7700",
+            border: "1px solid var(--bg, #fff)",
+            borderRadius: "50%",
+          }}
+        />
       )}
     </button>
   );

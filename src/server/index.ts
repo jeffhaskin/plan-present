@@ -203,11 +203,11 @@ app.post("/api/doc/:slug/pin", (req, res) => {
   });
 });
 
-// POST /api/doc/:slug/pin/move — swap priority with the nearest pinned neighbor
+// POST /api/doc/:slug/pin/move — reorder pinned item (swap for up/down, shift for top/bottom)
 app.post("/api/doc/:slug/pin/move", (req, res) => {
   const { direction } = req.body;
-  if (direction !== "up" && direction !== "down") {
-    res.status(400).json({ error: "direction must be 'up' or 'down'" });
+  if (direction !== "up" && direction !== "down" && direction !== "top" && direction !== "bottom") {
+    res.status(400).json({ error: "direction must be 'up', 'down', 'top', or 'bottom'" });
     return;
   }
   const result = movePriority(req.params.slug, direction);
@@ -327,7 +327,7 @@ document.getElementById('theme-btn').addEventListener('click',function(){apply(!
   const rows = docs
     .map((d) => {
       const dir = path.dirname(d.absolutePath);
-      return `<tr data-pinned="${d.pinned ? "true" : "false"}" data-priority="${d.priorityPin ?? ""}" data-name="${escAttr(d.originalBaseName)}"><td class="pin-col"><div class="pin-controls"><button type="button" class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">\u{1F4CC}</button><button type="button" class="prio-move prio-up" data-slug="${d.slug}" data-direction="up" title="Move up"${d.pinned ? "" : " disabled"}>\u25B2</button><button type="button" class="prio-move prio-down" data-slug="${d.slug}" data-direction="down" title="Move down"${d.pinned ? "" : " disabled"}>\u25BC</button></div></td><td class="actions-col"><button type="button" class="row-action row-reset" data-slug="${d.slug}" title="Deregister (remove from list; file stays on disk)" aria-label="Deregister">${RESET_SVG}</button><button type="button" class="row-action row-delete" data-slug="${d.slug}" title="Delete file from disk" aria-label="Delete file">${TRASH_SVG}</button><button type="button" class="row-action dir-copy-btn" data-path="${escAttr(d.absolutePath)}" title="Copy full pathname" aria-label="Copy full pathname">${COPY_SVG}</button></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a></td><td class="dir"><code>${dir}</code></td><td>${fmtTs(d.registeredAt)}</td></tr>`;
+      return `<tr data-pinned="${d.pinned ? "true" : "false"}" data-priority="${d.priorityPin ?? ""}" data-name="${escAttr(d.originalBaseName)}"><td class="pin-col"><div class="pin-controls"><button type="button" class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">\u{1F4CC}</button><button type="button" class="prio-move prio-top" data-slug="${d.slug}" data-direction="top" title="${d.pinned ? "Move to top" : "Pin & move to top"}">\u2912</button><button type="button" class="prio-move prio-up" data-slug="${d.slug}" data-direction="up" title="Move up"${d.pinned ? "" : " disabled"}>\u25B2</button><button type="button" class="prio-move prio-down" data-slug="${d.slug}" data-direction="down" title="Move down"${d.pinned ? "" : " disabled"}>\u25BC</button><button type="button" class="prio-move prio-bottom" data-slug="${d.slug}" data-direction="bottom" title="Move to bottom"${d.pinned ? "" : " disabled"}>\u2913</button></div></td><td class="actions-col"><button type="button" class="row-action row-reset" data-slug="${d.slug}" title="Deregister (remove from list; file stays on disk)" aria-label="Deregister">${RESET_SVG}</button><button type="button" class="row-action row-delete" data-slug="${d.slug}" title="Delete file from disk" aria-label="Delete file">${TRASH_SVG}</button></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a><button type="button" class="row-action dir-copy-btn" data-path="${escAttr(d.absolutePath)}" title="Copy full pathname" aria-label="Copy full pathname">${COPY_SVG}</button></td><td class="dir"><code>${dir}</code></td><td>${fmtTs(d.registeredAt)}</td></tr>`;
     })
     .join("\n");
 
@@ -339,7 +339,8 @@ body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:var
 table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)}
 th{font-weight:600}a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
 code{background:var(--surface);padding:2px 6px;border-radius:3px}
-th.actions-col,td.actions-col{width:84px;text-align:center;padding-left:4px;padding-right:4px;white-space:nowrap}
+th.actions-col,td.actions-col{width:56px;text-align:center;padding-left:4px;padding-right:4px;white-space:nowrap}
+.dir-copy-btn{margin-left:6px;vertical-align:middle}
 .row-action{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;margin:0 1px;background:none;border:1px solid transparent;border-radius:3px;cursor:pointer;color:var(--sort-fg);line-height:0;transition:color 0.12s,background 0.12s,border-color 0.12s}
 .row-action:hover{color:var(--fg);background:var(--sel-bg);border-color:var(--btn-border)}
 .row-reset:hover{color:#cc7700;border-color:#e0a060}
@@ -351,7 +352,7 @@ td.dir{white-space:normal;word-break:break-all}
 .dir-copy-btn.error{color:#cc3300;border-color:#e0a090;background:#fdf1ee}
 .sort-btn{background:none;border:none;cursor:pointer;font-size:0.8rem;padding:0 3px;color:var(--sort-fg);vertical-align:middle}
 .sort-btn:hover{color:var(--fg)}
-th.pin-col,td.pin-col{width:80px;padding-left:8px;padding-right:4px}
+th.pin-col,td.pin-col{width:108px;padding-left:8px;padding-right:4px}
 th.pin-col{text-align:center}
 .pin-controls{display:flex;align-items:center;gap:2px;justify-content:flex-start}
 .pin-btn{background:none;border:none;cursor:pointer;font-size:1.05rem;padding:2px 4px;line-height:1;opacity:0.22;filter:grayscale(1);transition:opacity 0.15s,filter 0.15s,transform 0.15s;transform:rotate(35deg)}
@@ -361,14 +362,16 @@ th.pin-col{text-align:center}
 .prio-move{background:none;border:1px solid transparent;border-radius:3px;padding:0 3px;cursor:pointer;font-size:0.7rem;line-height:1;color:var(--prio-fg);opacity:0.7;transition:opacity 0.12s,background 0.12s,border-color 0.12s}
 .prio-move:hover:not(:disabled){opacity:1;background:var(--sel-bg);border-color:var(--btn-border);color:var(--fg)}
 .prio-move:disabled{opacity:0.18;cursor:default}
-tr[data-pinned="false"] .prio-move{display:none}
+tr[data-pinned="false"] .prio-move:not(.prio-top){display:none}
+tr[data-pinned="false"] .prio-top{opacity:0.22;filter:grayscale(1)}
+tr[data-pinned="false"] .prio-top:hover{opacity:0.55;background:none;border-color:transparent;color:var(--prio-fg)}
 .btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}
 .theme-icon-light{display:inline;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(0,0,0,0.25))}.theme-icon-dark{display:none;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(255,255,255,0.25))}[data-theme=dark] .theme-icon-light{display:none}[data-theme=dark] .theme-icon-dark{display:inline}</style></head>
 <body><button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>
 <h1><img src="/icon_dark.png" class="theme-icon-dark" style="height:1em;margin-right:0.35em"><img src="/icon_light.png" class="theme-icon-light" style="height:1em;margin-right:0.35em">plan-present</h1>
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
-<tr><th class="pin-col" title="Pinned (up/down to reorder)">\u{1F4CC}</th><th class="actions-col" title="Deregister / Delete / Copy path"></th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th></tr>
+<tr><th class="pin-col" title="Pinned (up/down to reorder)">\u{1F4CC}</th><th class="actions-col" title="Deregister / Delete"></th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th></tr>
 </thead>
 <tbody>${rows}</tbody></table>
 <script>
@@ -497,6 +500,8 @@ function applyRowState(row, pinned, priority) {
     btn.title = pinned ? 'Unpin' : 'Pin';
     btn.setAttribute('aria-label', btn.title);
   }
+  const topBtn = row.querySelector('.prio-top');
+  if (topBtn) topBtn.title = pinned ? 'Move to top' : 'Pin & move to top';
 }
 function updateMoveButtons() {
   const pinnedRows = Array.from(document.querySelectorAll('tbody tr'))
@@ -506,16 +511,22 @@ function updateMoveButtons() {
   const minP = pinnedRows.length ? pinnedRows[0].p : null;
   const maxP = pinnedRows.length ? pinnedRows[pinnedRows.length - 1].p : null;
   document.querySelectorAll('tbody tr').forEach(row => {
+    const top = row.querySelector('.prio-top');
     const up = row.querySelector('.prio-up');
     const down = row.querySelector('.prio-down');
+    const bottom = row.querySelector('.prio-bottom');
     const p = row.dataset.priority ? Number(row.dataset.priority) : null;
-    if (!up || !down) return;
+    if (!up || !down || !top || !bottom) return;
     if (p == null) {
+      top.disabled = false;
       up.disabled = true;
       down.disabled = true;
+      bottom.disabled = true;
     } else {
+      top.disabled = p === minP;
       up.disabled = p === minP;
       down.disabled = p === maxP;
+      bottom.disabled = p === maxP;
     }
   });
 }

@@ -12,6 +12,7 @@ export interface AutosaveStatus {
 export interface AutosaveState extends AutosaveStatus {
   save: () => Promise<boolean>;
   markClean: (content: string) => void;
+  isDirty: () => boolean;
 }
 
 const DEBOUNCE_MS = 2000;
@@ -38,6 +39,8 @@ export function useAutosave(
     cleanContentRef.current = content;
     dirtyRef.current = false;
   }, []);
+
+  const isDirty = useCallback(() => dirtyRef.current, []);
 
   const save = useCallback(async (): Promise<boolean> => {
     if (!editor) {
@@ -142,5 +145,5 @@ export function useAutosave(
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, [editor, slug, baseMtimeRef]);
 
-  return { ...state, save, markClean };
+  return { ...state, save, markClean, isDirty };
 }

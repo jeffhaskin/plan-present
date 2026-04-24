@@ -169,42 +169,93 @@ export function setPinned(
 
 export function movePriority(
   slug: string,
-  direction: "up" | "down",
+  direction: "up" | "down" | "top" | "bottom",
 ): { entry: RegistryEntry; affected: RegistryEntry[] } | undefined {
   const entry = bySlug.get(slug);
-  if (!entry || typeof entry.priorityPin !== "number") return undefined;
+  if (!entry) return undefined;
+
+  // Auto-pin on top/bottom for an unpinned entry: one-click "pin & place at end".
+  // setPinned appends at the next free slot; the shift logic below then moves
+  // it to the requested end. up/down still require an already-pinned entry.
+  if (
+    (direction === "top" || direction === "bottom") &&
+    typeof entry.priorityPin !== "number"
+  ) {
+    const pinRes = setPinned(slug, true);
+    if (!pinRes) return undefined;
+  }
+
+  if (typeof entry.priorityPin !== "number") return undefined;
   const current = entry.priorityPin;
 
-  let neighbor: RegistryEntry | null = null;
-  if (direction === "up") {
-    let best = 0;
-    for (const other of bySlug.values()) {
-      if (other === entry) continue;
-      if (typeof other.priorityPin === "number" && other.priorityPin < current && other.priorityPin > best) {
-        best = other.priorityPin;
-        neighbor = other;
+  if (direction === "up" || direction === "down") {
+    let neighbor: RegistryEntry | null = null;
+    if (direction === "up") {
+      let best = 0;
+      for (const other of bySlug.values()) {
+        if (other === entry) continue;
+        if (typeof other.priorityPin === "number" && other.priorityPin < current && other.priorityPin > best) {
+          best = other.priorityPin;
+          neighbor = other;
+        }
+      }
+    } else {
+      let best = Infinity;
+      for (const other of bySlug.values()) {
+        if (other === entry) continue;
+        if (typeof other.priorityPin === "number" && other.priorityPin > current && other.priorityPin < best) {
+          best = other.priorityPin;
+          neighbor = other;
+        }
       }
     }
+
+    if (neighbor === null) {
+      return { entry, affected: [] };
+    }
+
+    const neighborSlot = neighbor.priorityPin!;
+    neighbor.priorityPin = current;
+    entry.priorityPin = neighborSlot;
+    persistToDisk();
+    return { entry, affected: [neighbor] };
+  }
+
+  let minP = Infinity;
+  let maxP = 0;
+  for (const other of bySlug.values()) {
+    if (typeof other.priorityPin !== "number") continue;
+    if (other.priorityPin < minP) minP = other.priorityPin;
+    if (other.priorityPin > maxP) maxP = other.priorityPin;
+  }
+
+  const affected: RegistryEntry[] = [];
+  if (direction === "top") {
+    if (current === minP) return { entry, affected: [] };
+    for (const other of bySlug.values()) {
+      if (other === entry) continue;
+      if (typeof other.priorityPin !== "number") continue;
+      if (other.priorityPin < current) {
+        other.priorityPin += 1;
+        affected.push(other);
+      }
+    }
+    entry.priorityPin = minP;
   } else {
-    let best = Infinity;
+    if (current === maxP) return { entry, affected: [] };
     for (const other of bySlug.values()) {
       if (other === entry) continue;
-      if (typeof other.priorityPin === "number" && other.priorityPin > current && other.priorityPin < best) {
-        best = other.priorityPin;
-        neighbor = other;
+      if (typeof other.priorityPin !== "number") continue;
+      if (other.priorityPin > current) {
+        other.priorityPin -= 1;
+        affected.push(other);
       }
     }
+    entry.priorityPin = maxP;
   }
 
-  if (neighbor === null) {
-    return { entry, affected: [] };
-  }
-
-  const neighborSlot = neighbor.priorityPin!;
-  neighbor.priorityPin = current;
-  entry.priorityPin = neighborSlot;
   persistToDisk();
-  return { entry, affected: [neighbor] };
+  return { entry, affected };
 }
 
 export function removeDocument(slug: string): boolean {
