@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
@@ -65,6 +65,34 @@ async function copyText(text: string): Promise<boolean> {
   }
   return ok;
 }
+interface HeadingItem {
+  marker: string; // outline marker (incl. its terminator), e.g. "1.0", "1.1.1)", "I.", "" if none
+  body: string;   // the rest of the heading text (or the whole thing when no marker)
+}
+
+// Split a heading into its outline marker and body. Recognized markers (each
+// followed by `.` or `)` and a space):
+//   pure decimal: 1.0, 1.1, 1.1.1
+//   number:       1., 1)
+//   letter:       A., a., A), a)
+//   Roman:        I., II., iv., IX., I), ii)  (chars from IVXLCDM / ivxlcdm)
+function parseOutlineMarker(text: string): HeadingItem {
+  const trimmed = text.trim();
+  if (!trimmed) return { marker: "", body: "" };
+
+  const decimalMatch = trimmed.match(/^(\d+(?:\.\d+)+[.)]?)\s+(.*)$/);
+  if (decimalMatch) return { marker: decimalMatch[1], body: decimalMatch[2] };
+
+  const stdMatch = trimmed.match(
+    /^((?:[IVXLCDM]+|[ivxlcdm]+|[A-Z]|[a-z]|\d+)[.)])\s+(.*)$/,
+  );
+  if (stdMatch) return { marker: stdMatch[1], body: stdMatch[2] };
+
+  return { marker: "", body: trimmed };
+}
+
+const NAV_COLLAPSED_STORAGE_KEY = "plan-present-nav-collapsed";
+
 const DEFAULT_CONTENT_WIDTH_REM = 48;
 const MIN_CONTENT_WIDTH_REM = 36;
 const MAX_CONTENT_WIDTH_REM = 80;
@@ -82,6 +110,22 @@ export default function Editor({ slug }: { slug: string }) {
   const [externalChangesPending, setExternalChangesPending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const refreshingRef = useRef(false);
+  const [headings, setHeadings] = useState<HeadingItem[]>([]);
+  const [navCollapsed, setNavCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, String(navCollapsed));
+    } catch {
+      // ignore quota / disabled storage
+    }
+  }, [navCollapsed]);
 
   const editor = useEditor({
     extensions: [
@@ -98,6 +142,40 @@ export default function Editor({ slug }: { slug: string }) {
     content: "",
     editable: false,
   });
+
+  const refreshHeadings = useCallback(() => {
+    if (!editor) return;
+    const items: HeadingItem[] = [];
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === "heading") {
+        if (node.attrs.level === 2) {
+          items.push(parseOutlineMarker(node.textContent));
+        }
+        return false; // headings are flat — don't descend further
+      }
+      return true;
+    });
+    setHeadings(items);
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.on("update", refreshHeadings);
+    return () => {
+      editor.off("update", refreshHeadings);
+    };
+  }, [editor, refreshHeadings]);
+
+  const navigateToHeading = useCallback(
+    (index: number) => {
+      if (!editor) return;
+      const dom = editor.view.dom as HTMLElement;
+      const allHeadings = Array.from(dom.querySelectorAll("h2"));
+      const target = allHeadings[index] as HTMLElement | undefined;
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+    [editor],
+  );
 
   const autosave = useAutosave(editor, slug, baseMtimeRef);
 
@@ -207,6 +285,7 @@ export default function Editor({ slug }: { slug: string }) {
           // the loaded content, so phantom "update" events from DOM widget
           // injection (copy buttons in <pre>) don't flag the doc as dirty.
           autosave.markClean((editor as any).getMarkdown());
+          refreshHeadings();
         }
         setLoading(false);
       } catch {
@@ -224,7 +303,7 @@ export default function Editor({ slug }: { slug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [slug, editor]);
+  }, [slug, editor, refreshHeadings]);
 
   const { markClean, isDirty } = autosave;
 
@@ -251,6 +330,7 @@ export default function Editor({ slug }: { slug: string }) {
         markClean((editor as any).getMarkdown());
         baseMtimeRef.current = data.mtime;
         setExternalChangesPending(false);
+        refreshHeadings();
       } catch {
         // Swallow network errors; the save path's conflict detection is the safety net.
       } finally {
@@ -258,7 +338,7 @@ export default function Editor({ slug }: { slug: string }) {
         setRefreshing(false);
       }
     },
-    [editor, slug, isDirty, markClean],
+    [editor, slug, isDirty, markClean, refreshHeadings],
   );
 
   useEffect(() => {
@@ -289,10 +369,26 @@ export default function Editor({ slug }: { slug: string }) {
   const [plainMode, setPlainMode] = useState<"off" | "view" | "edit">("off");
   const [plainText, setPlainText] = useState("");
 
+  // Push pending plain-text edits back into the rich editor and exit plain-text-edit
+  // mode. Other actions call this first so they always operate on the latest content.
+  function commitPlainTextEditIfActive() {
+    if (!editor) return;
+    if (plainMode === "edit") {
+      editor.commands.setContent(plainText, { emitUpdate: true, contentType: "markdown" });
+      setPlainMode("off");
+    }
+  }
+
   function togglePlainView() {
     if (!editor) return;
     if (plainMode === "view") {
       setPlainMode("off");
+      return;
+    }
+    if (plainMode === "edit") {
+      // Commit pending edits, then switch to read-only plain text view.
+      editor.commands.setContent(plainText, { emitUpdate: true, contentType: "markdown" });
+      setPlainMode("view");
       return;
     }
     setPlainText((editor as any).getMarkdown());
@@ -306,16 +402,51 @@ export default function Editor({ slug }: { slug: string }) {
       setPlainMode("off");
       return;
     }
+    if (plainMode === "view") {
+      // Re-seed plainText from editor in case external refresh changed it,
+      // then become editable.
+      setPlainText((editor as any).getMarkdown());
+      setPlainMode("edit");
+      return;
+    }
     setPlainText((editor as any).getMarkdown());
     setPlainMode("edit");
   }
 
+  function handlePadlockToggle() {
+    commitPlainTextEditIfActive();
+    setReadOnly((v) => !v);
+  }
+
   function handleHome() {
+    commitPlainTextEditIfActive();
     window.location.href = "/";
+  }
+
+  // Try to go back to wherever the user came from. Uses history.back() when
+  // the referrer is from this same origin (i.e., they navigated here from /
+  // or /tree); otherwise falls back to the list home so the button is never
+  // a no-op.
+  function handleBack() {
+    commitPlainTextEditIfActive();
+    let internal = false;
+    if (document.referrer) {
+      try {
+        internal = new URL(document.referrer).origin === window.location.origin;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (internal && window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = "/";
+    }
   }
 
   async function handleDeregister() {
     if (closing) return;
+    commitPlainTextEditIfActive();
     setClosing(true);
     setActionError(null);
 
@@ -345,6 +476,7 @@ export default function Editor({ slug }: { slug: string }) {
   async function handleDelete() {
     if (deleting) return;
     if (!window.confirm(`Permanently delete "${fileName}" from disk?`)) return;
+    commitPlainTextEditIfActive();
     setDeleting(true);
     setActionError(null);
     try {
@@ -353,6 +485,9 @@ export default function Editor({ slug }: { slug: string }) {
       window.location.href = "/";
     }
   }
+
+  // The doc is "editable" any time edits are accepted in any mode.
+  const docEditable = plainMode === "edit" || (plainMode === "off" && !readOnly);
 
   if (closed) {
     return (
@@ -382,110 +517,219 @@ export default function Editor({ slug }: { slug: string }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    <div
+      style={
+        {
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          "--content-max-width": `${contentWidthRem}rem`,
+        } as CSSProperties
+      }
+    >
       {absolutePath && (
-        <div className="editor-path-bar">
-          <span className="editor-path-text" title={absolutePath}>
-            {absolutePath}
+        <div className="app-top-bar">
+          <span className="app-brand" aria-label="plan-present">
+            <img
+              src="/icon_dark.png"
+              className="theme-icon-dark"
+              style={{ height: "1em", marginRight: "0.35em" }}
+              alt=""
+            />
+            <img
+              src="/icon_light.png"
+              className="theme-icon-light"
+              style={{ height: "1em", marginRight: "0.35em" }}
+              alt=""
+            />
+            plan-present
           </span>
-          <PathCopyButton path={absolutePath} />
+          <button
+            type="button"
+            className="home-switch"
+            onClick={handleBack}
+            title="Back to previous view"
+            aria-label="Back"
+          >
+            <IconArrowLeft />
+          </button>
+          <nav className="home-switcher" aria-label="Home view">
+            <button
+              type="button"
+              className="home-switch home-switch--home"
+              onClick={handleHome}
+              title="Document list"
+              aria-label="Document list"
+            >
+              <IconHome />
+            </button>
+            <button
+              type="button"
+              className="home-switch home-switch--tree"
+              onClick={() => {
+                commitPlainTextEditIfActive();
+                window.location.href = "/tree";
+              }}
+              title="Markdown tree"
+              aria-label="Markdown tree"
+            >
+              <IconHierarchy />
+            </button>
+          </nav>
           <RefreshButton
             onClick={handleRefreshClick}
             disabled={refreshing}
             pending={externalChangesPending}
           />
+          <span className="path-bar-flex" style={{ flex: 1 }} />
+          <span className="editor-path-text" title={absolutePath}>
+            {absolutePath}
+          </span>
+          <PathCopyButton path={absolutePath} />
+          <span
+            className={
+              docEditable
+                ? "doc-state-icon doc-state-icon--editing"
+                : "doc-state-icon doc-state-icon--locked"
+            }
+            role="img"
+            aria-label={docEditable ? "Edit mode" : "Read-only"}
+            title={docEditable ? "Edit mode" : "Read-only"}
+          >
+            {docEditable ? <IconLockOpen /> : <IconLockClosed />}
+          </span>
+          <span className="path-bar-flex" style={{ flex: 1 }} />
+          <div className="path-actions">
+            <IconButton
+              onClick={handlePadlockToggle}
+              active={plainMode === "off" && !readOnly}
+              title={readOnly ? "Enable editing" : "Lock to read-only"}
+            >
+              <IconPencil />
+            </IconButton>
+            <IconButton
+              onClick={togglePlainEdit}
+              disabled={!editor}
+              active={plainMode === "edit"}
+              title={plainMode === "edit" ? "Done editing as plain text" : "Edit as plain text"}
+            >
+              <IconPlainEdit />
+            </IconButton>
+            <IconButton
+              onClick={togglePlainView}
+              disabled={!editor}
+              active={plainMode === "view"}
+              title={plainMode === "view" ? "Show WYSIWYG" : "Show as plain text"}
+            >
+              <IconPlainView />
+            </IconButton>
+            <IconButton
+              onClick={handleDeregister}
+              disabled={closing || deleting || autosave.isSaving}
+              variant="warn"
+              title={closing ? "Closing..." : "Deregister (remove from list; file stays on disk)"}
+            >
+              <IconReset />
+            </IconButton>
+            <IconButton
+              onClick={handleDelete}
+              disabled={closing || deleting || autosave.isSaving}
+              variant="danger"
+              title={deleting ? "Deleting..." : "Delete file from disk"}
+            >
+              <IconTrash />
+            </IconButton>
+          </div>
+          <span className="path-bar-flex" style={{ flex: 1 }} />
           <ThemeToggle compact />
         </div>
       )}
-      <header className="editor-header">
-        <span>
-          {fileName}
-          {readOnly && <span className="read-only-badge">Read-only</span>}
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {actionError && (
-            <span style={{ color: "#cc3300", fontSize: "13px" }}>{actionError}</span>
-          )}
-          <button
-            className="btn-save btn-home"
-            onClick={handleHome}
+      {actionError && <div className="editor-action-error">{actionError}</div>}
+      <div className="editor-body">
+        {plainMode === "off" && headings.length > 0 && (
+          <nav
+            className={navCollapsed ? "doc-nav doc-nav--collapsed" : "doc-nav"}
+            aria-label="Document outline"
           >
-            Home
-          </button>
-          <button
-            className={readOnly ? "btn-toggle-edit" : "btn-toggle-edit btn-toggle-edit--active"}
-            onClick={() => setReadOnly((v) => !v)}
-            title={readOnly ? "Enable editing" : "Lock to read-only"}
-          >
-            {readOnly ? "Edit" : "Editing"}
-          </button>
-          <button
-            className="btn-save"
-            onClick={togglePlainEdit}
-            disabled={!editor || plainMode === "view"}
-            title="Edit the document as raw markdown"
-          >
-            {plainMode === "edit" ? "Done editing" : "Edit as plain text"}
-          </button>
-          <button
-            className="btn-save"
-            onClick={togglePlainView}
-            disabled={!editor || plainMode === "edit"}
-            title="Render the document as plain-text markdown"
-          >
-            {plainMode === "view" ? "Show WYSIWYG" : "Show as plain text"}
-          </button>
-          <button
-            className="btn-done"
-            onClick={handleDeregister}
-            disabled={closing || deleting || autosave.isSaving}
-          >
-            {closing ? "Closing..." : "Deregister"}
-          </button>
-          <button
-            className="btn-delete"
-            onClick={handleDelete}
-            disabled={closing || deleting || autosave.isSaving}
-          >
-            {deleting ? "Deleting..." : "Delete"}
-          </button>
-        </div>
-      </header>
-      {plainMode === "off" ? (
-        <EditorContent
-          editor={editor}
-          style={
-            {
-              flex: 1,
-              overflow: "auto",
-              "--content-max-width": `${contentWidthRem}rem`,
-            } as CSSProperties
-          }
-        />
-      ) : (
-        <textarea
-          value={plainText}
-          readOnly={plainMode === "view"}
-          onChange={(e) => setPlainText(e.target.value)}
-          spellCheck={false}
-          style={{
-            flex: 1,
-            overflow: "auto",
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "1rem",
-            border: "none",
-            outline: "none",
-            resize: "none",
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-            fontSize: "14px",
-            lineHeight: 1.5,
-            background: plainMode === "view" ? "#fafafa" : "#fff",
-            color: "#222",
-            whiteSpace: "pre",
-          }}
-        />
-      )}
+            <div className="doc-nav-toolbar">
+              <span className="doc-nav-header">Outline</span>
+              <button
+                type="button"
+                className="doc-nav-toggle"
+                onClick={() => setNavCollapsed((v) => !v)}
+                title={navCollapsed ? "Expand outline" : "Collapse outline"}
+                aria-label={navCollapsed ? "Expand outline" : "Collapse outline"}
+                aria-expanded={!navCollapsed}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+            </div>
+            <div className="doc-nav-list">
+              {headings.map((h, i) => {
+                const fullText = h.marker ? `${h.marker} ${h.body}` : h.body;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    className="doc-nav-item"
+                    onClick={() => navigateToHeading(i)}
+                    title={fullText || "(empty heading)"}
+                  >
+                    <span className="doc-nav-marker">{h.marker}</span>
+                    <span className="doc-nav-text">
+                      {h.body || (h.marker ? "" : "(empty heading)")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        )}
+        {plainMode === "off" ? (
+          <EditorContent
+            editor={editor}
+            style={{ flex: 1, overflow: "auto" }}
+          />
+        ) : (
+          <div className="plain-text-wrapper">
+            {plainMode === "view" && (
+              <div className="plain-copy-overlay" aria-hidden="false">
+                <div className="plain-copy-overlay-inner">
+                  {/* plainText is set from editor.getMarkdown() — raw markdown,
+                      not JSON or HTML. */}
+                  <PlainTextCopyButton text={plainText} />
+                </div>
+              </div>
+            )}
+            <div className="editor-content-scroll">
+              <textarea
+                className={
+                  plainMode === "view"
+                    ? "editor-plain-text editor-plain-text--view"
+                    : "editor-plain-text"
+                }
+                value={plainText}
+                readOnly={plainMode === "view"}
+                onChange={(e) => setPlainText(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
+          </div>
+        )}
+      </div>
       <div className="width-slider">
         <label htmlFor="content-width-slider">Width</label>
         <input
@@ -529,8 +773,8 @@ function PathCopyButton({ path }: { path: string }) {
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 22,
-        height: 22,
+        width: 32,
+        height: 32,
         padding: 0,
         background: palette.bg,
         color: palette.fg,
@@ -544,8 +788,8 @@ function PathCopyButton({ path }: { path: string }) {
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
-          width="13"
-          height="13"
+          width="20"
+          height="20"
           fill="none"
           stroke="currentColor"
           strokeWidth={2.5}
@@ -558,8 +802,64 @@ function PathCopyButton({ path }: { path: string }) {
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
-          width="13"
-          height="13"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+function PlainTextCopyButton({ text }: { text: string }) {
+  const [state, setState] = useState<"idle" | "copied" | "error">("idle");
+  async function onClick() {
+    const ok = await copyText(text);
+    setState(ok ? "copied" : "error");
+    setTimeout(() => setState("idle"), 1200);
+  }
+  const cls =
+    state === "copied"
+      ? "plain-copy-btn plain-copy-btn--copied"
+      : state === "error"
+      ? "plain-copy-btn plain-copy-btn--error"
+      : "plain-copy-btn";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
+      className={cls}
+      title="Copy entire document to clipboard"
+      aria-label="Copy entire document to clipboard"
+    >
+      {state === "copied" ? (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
@@ -603,8 +903,8 @@ function RefreshButton({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 22,
-        height: 22,
+        width: 32,
+        height: 32,
         padding: 0,
         background: palette.bg,
         color: palette.fg,
@@ -618,8 +918,8 @@ function RefreshButton({
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
-        width="13"
-        height="13"
+        width="20"
+        height="20"
         fill="none"
         stroke="currentColor"
         strokeWidth={2}
@@ -644,6 +944,131 @@ function RefreshButton({
           }}
         />
       )}
+    </button>
+  );
+}
+
+const ICON_SVG_PROPS = {
+  xmlns: "http://www.w3.org/2000/svg",
+  viewBox: "0 0 24 24",
+  width: 20,
+  height: 20,
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+const IconHome = () => (
+  <svg {...ICON_SVG_PROPS}>
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
+
+const IconHierarchy = () => (
+  <svg {...ICON_SVG_PROPS}>
+    <line x1="3" y1="6" x2="20" y2="6" />
+    <line x1="8" y1="12" x2="20" y2="12" />
+    <line x1="13" y1="18" x2="20" y2="18" />
+  </svg>
+);
+
+const IconArrowLeft = () => (
+  <svg {...ICON_SVG_PROPS}>
+    <line x1="19" y1="12" x2="5" y2="12" />
+    <polyline points="12 19 5 12 12 5" />
+  </svg>
+);
+
+const IconPencil = () => (
+  <svg {...ICON_SVG_PROPS}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </svg>
+);
+
+const IconLockClosed = () => (
+  <svg {...ICON_SVG_PROPS}>
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
+const IconLockOpen = () => (
+  <svg {...ICON_SVG_PROPS}>
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+  </svg>
+);
+
+const IconPlainEdit = () => (
+  <svg {...ICON_SVG_PROPS}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10 9 9 9 8 9" />
+  </svg>
+);
+
+const IconPlainView = () => (
+  <svg {...ICON_SVG_PROPS}>
+    <polyline points="16 18 22 12 16 6" />
+    <polyline points="8 6 2 12 8 18" />
+  </svg>
+);
+
+const IconReset = () => (
+  <svg {...ICON_SVG_PROPS}>
+    <polyline points="23 4 23 10 17 10" />
+    <polyline points="1 20 1 14 7 14" />
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+  </svg>
+);
+
+const IconTrash = () => (
+  <svg {...ICON_SVG_PROPS}>
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
+function IconButton({
+  onClick,
+  disabled,
+  title,
+  active,
+  variant,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  title: string;
+  active?: boolean;
+  variant?: "default" | "danger" | "home" | "warn" | "outline";
+  children: ReactNode;
+}) {
+  const classes = ["path-icon-btn"];
+  if (active) classes.push("path-icon-btn--active");
+  if (variant === "danger") classes.push("path-icon-btn--danger");
+  if (variant === "home") classes.push("path-icon-btn--home");
+  if (variant === "warn") classes.push("path-icon-btn--warn");
+  if (variant === "outline") classes.push("path-icon-btn--outline");
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
+      disabled={disabled}
+      className={classes.join(" ")}
+      title={title}
+      aria-label={title}
+    >
+      {children}
     </button>
   );
 }

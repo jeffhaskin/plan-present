@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
@@ -15,6 +16,7 @@ import {
   loadFromDisk,
 } from "./registry";
 import { saveWithConflictDetection } from "./conflict";
+import type { BrowseResponse, TreeFolder, TreeResponse } from "../shared/types";
 
 const PORT = 7979;
 const HOST = "0.0.0.0";
@@ -41,7 +43,7 @@ function requestLogger(req: Request, res: Response, next: NextFunction): void {
 }
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(requestLogger);
 app.use(tailscaleOnly);
 
@@ -126,8 +128,35 @@ app.get("/api/docs", (_req, res) => {
     fileName: entry.originalBaseName,
     absolutePath: entry.absolutePath,
     url: `http://${tailscaleHost}:${PORT}/doc/${entry.slug}`,
+    pinned: !!entry.pinned,
+    priorityPin: entry.priorityPin ?? null,
   }));
   res.json(docs);
+});
+
+// DELETE /api/file?path=<absolute-path> — delete a file from disk; if it happens to
+// be registered, also drop it from the registry.
+app.delete("/api/file", (req, res) => {
+  const filePath = typeof req.query.path === "string" ? req.query.path.trim() : "";
+  if (!filePath) {
+    res.status(400).json({ error: "Missing 'path' query parameter" });
+    return;
+  }
+  if (!path.isAbsolute(filePath)) {
+    res.status(400).json({ error: "Path must be absolute" });
+    return;
+  }
+  const existing = getDocumentByPath(filePath);
+  if (existing) removeDocument(existing.slug);
+  try {
+    fs.unlinkSync(filePath);
+  } catch (err: any) {
+    if (err.code !== "ENOENT") {
+      res.status(500).json({ error: `Failed to delete file: ${err.message}` });
+      return;
+    }
+  }
+  res.json({ deleted: true });
 });
 
 // GET /api/doc/:slug — load a document
@@ -259,6 +288,51 @@ app.delete("/api/doc/:slug/file", (req, res) => {
   res.json({ deleted: true });
 });
 
+// Shared bits for the server-rendered list-home. The .app-top-bar styling
+// mirrors the SPA's .app-top-bar so the bar (height/width/background/padding)
+// is uniform across editor, tree, and list-home views.
+const HOME_SWITCHER_CSS =
+  "body{margin:0;padding:0}" +
+  ".app-top-bar{display:flex;align-items:center;gap:8px;padding:4px 16px;background:var(--surface-alt,#f4f4f4);border-bottom:1px solid var(--border)}" +
+  "[data-theme=dark] .app-top-bar{background:#222}" +
+  ".app-brand{display:inline-flex;align-items:center;flex-shrink:0;font-size:13px;font-weight:600;color:var(--fg);white-space:nowrap;margin-right:4px}" +
+  ".app-brand img{height:1em;margin-right:0.35em;vertical-align:middle}" +
+  ".home-switcher{display:inline-flex;gap:4px;flex-shrink:0}" +
+  ".home-switch-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:4px;background:transparent;cursor:pointer;color:var(--btn-fg);text-decoration:none;transition:background 0.1s,color 0.1s,border-color 0.1s}" +
+  ".home-switch-btn:hover{background:var(--btn-bg);border-color:var(--btn-border)}" +
+  ".home-switch-btn--home{color:#b8860b}" +
+  "[data-theme=dark] .home-switch-btn--home{color:#e6b800}" +
+  ".home-switch-btn--tree{color:#2a7a2a}" +
+  "[data-theme=dark] .home-switch-btn--tree{color:#6ec86e}" +
+  ".home-switch-btn--active{background:var(--btn-bg);border-color:var(--btn-border);cursor:default}" +
+  ".app-top-spacer{flex:1}" +
+  ".page-body{padding:2rem 100px}" +
+  // Theme toggle inside the bar — override the page-level fixed-positioned rule.
+  ".app-top-bar .btn-theme-toggle{position:static;top:auto;right:auto;width:32px;height:32px;flex-shrink:0;background:transparent;border-color:transparent}" +
+  ".app-top-bar .btn-theme-toggle:hover{background:var(--btn-bg);border-color:var(--btn-border)}";
+
+const HOME_SWITCHER_HTML =
+  '<div class="app-top-bar">' +
+  '<span class="app-brand">' +
+  '<img src="/icon_dark.png" class="theme-icon-dark" alt="">' +
+  '<img src="/icon_light.png" class="theme-icon-light" alt="">' +
+  "plan-present" +
+  "</span>" +
+  '<nav class="home-switcher" aria-label="Home view">' +
+  '<a class="home-switch-btn home-switch-btn--home home-switch-btn--active" href="/" title="Document list (current view)" aria-current="page">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>' +
+  "</a>" +
+  '<a class="home-switch-btn home-switch-btn--tree" href="/tree" title="Directory tree">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="13" y1="18" x2="20" y2="18"/></svg>' +
+  "</a>" +
+  "</nav>" +
+  '<button class="home-switch-btn" onclick="window.location.reload()" title="Refresh registry" aria-label="Refresh">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>' +
+  "</button>" +
+  '<span class="app-top-spacer"></span>' +
+  '<button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>' +
+  "</div>";
+
 // GET / — index page listing registered documents
 app.get("/", (_req, res) => {
   const docs = [...listDocuments()].sort((a, b) => {
@@ -282,15 +356,17 @@ app.get("/", (_req, res) => {
 body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:var(--fg);background:var(--bg)}
 code{background:var(--surface);padding:2px 6px;border-radius:3px}pre{background:var(--surface);padding:1rem;border-radius:6px;overflow-x:auto}
 .btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}
-.theme-icon-light{display:inline;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(0,0,0,0.25))}.theme-icon-dark{display:none;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(255,255,255,0.25))}[data-theme=dark] .theme-icon-light{display:none}[data-theme=dark] .theme-icon-dark{display:inline}</style></head>
-<body><button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>
-<h1><img src="/icon_dark.png" class="theme-icon-dark" style="height:1em;margin-right:0.35em"><img src="/icon_light.png" class="theme-icon-light" style="height:1em;margin-right:0.35em">plan-present</h1>
+.theme-icon-light{display:inline;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(0,0,0,0.25))}.theme-icon-dark{display:none;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(255,255,255,0.25))}[data-theme=dark] .theme-icon-light{display:none}[data-theme=dark] .theme-icon-dark{display:inline}
+${HOME_SWITCHER_CSS}</style></head>
+<body>${HOME_SWITCHER_HTML}
+<div class="page-body">
 <p>No documents registered yet.</p>
 <p>Register a markdown file with:</p>
 <pre><code>curl -X POST ${tailscaleUrl}/open \\
   -H 'Content-Type: application/json' \\
   -d '{"path": "/absolute/path/to/your/file.md"}'</code></pre>
 <p>Then visit the returned URL to edit it in the browser.</p>
+</div>
 <script>
 (function(){
 var SOLID="M272 384c9.6-31.9 29.5-59.1 49.2-86.2c0 0 0 0 0 0c5.2-7.1 10.4-14.2 15.4-21.4c19.8-28.5 31.4-63 31.4-100.3C368 78.8 289.2 0 192 0S16 78.8 16 176c0 37.3 11.6 71.9 31.4 100.3c5 7.2 10.2 14.3 15.4 21.4c0 0 0 0 0 0c19.8 27.1 39.7 54.4 49.2 86.2l160 0zM192 512c44.2 0 80-35.8 80-80l0-16-160 0 0 16c0 44.2 35.8 80 80 80zM112 176c0 8.8-7.2 16-16 16s-16-7.2-16-16c0-61.9 50.1-112 112-112c8.8 0 16 7.2 16 16s-7.2 16-16 16c-44.2 0-80 35.8-80 80z";
@@ -366,9 +442,10 @@ tr[data-pinned="false"] .prio-move:not(.prio-top){display:none}
 tr[data-pinned="false"] .prio-top{opacity:0.22;filter:grayscale(1)}
 tr[data-pinned="false"] .prio-top:hover{opacity:0.55;background:none;border-color:transparent;color:var(--prio-fg)}
 .btn-theme-toggle{position:fixed;top:10px;right:14px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:6px;color:var(--btn-fg);cursor:pointer}
-.theme-icon-light{display:inline;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(0,0,0,0.25))}.theme-icon-dark{display:none;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(255,255,255,0.25))}[data-theme=dark] .theme-icon-light{display:none}[data-theme=dark] .theme-icon-dark{display:inline}</style></head>
-<body><button id="theme-btn" class="btn-theme-toggle" aria-label="Toggle dark mode"><svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="18" height="18" fill="currentColor"><path id="theme-path"/></svg></button>
-<h1><img src="/icon_dark.png" class="theme-icon-dark" style="height:1em;margin-right:0.35em"><img src="/icon_light.png" class="theme-icon-light" style="height:1em;margin-right:0.35em">plan-present</h1>
+.theme-icon-light{display:inline;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(0,0,0,0.25))}.theme-icon-dark{display:none;vertical-align:middle;filter:drop-shadow(0 0 2px rgba(255,255,255,0.25))}[data-theme=dark] .theme-icon-light{display:none}[data-theme=dark] .theme-icon-dark{display:inline}
+${HOME_SWITCHER_CSS}</style></head>
+<body>${HOME_SWITCHER_HTML}
+<div class="page-body">
 <p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
 <tr><th class="pin-col" title="Pinned (up/down to reorder)">\u{1F4CC}</th><th class="actions-col" title="Deregister / Delete"></th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th></tr>
@@ -595,6 +672,7 @@ applyTheme(dark);
 document.getElementById('theme-btn').addEventListener('click',function(){applyTheme(!dark);});
 })();
 </script>
+</div>
 </body></html>`);
 });
 
@@ -620,6 +698,172 @@ app.get("/doc/:slug", (req, res) => {
     return;
   }
   res.sendFile(path.join(clientDistDir, "index.html"));
+});
+
+// /tree — SPA-rendered hierarchical browser
+app.get("/tree", (_req, res) => {
+  res.sendFile(path.join(clientDistDir, "index.html"));
+});
+
+const TREE_MAX_DEPTH = 10;
+const TREE_MAX_FILES = 5000;
+
+function scanForMarkdown(rootPath: string): { folders: TreeFolder[]; truncated: boolean } {
+  const folders: TreeFolder[] = [];
+  let fileCount = 0;
+  let truncated = false;
+
+  // Push the folder before recursing (pre-order keeps parents above children),
+  // then prune the entry if neither it nor any descendant has .md files. This
+  // way intermediate folders that only contain md-bearing subfolders still
+  // appear in the output, preserving the hierarchy.
+  function walk(dir: string, depth: number): boolean {
+    if (truncated) return false;
+    if (depth > TREE_MAX_DEPTH) {
+      truncated = true;
+      return false;
+    }
+
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return false; // permission denied / unreadable — skip silently
+    }
+
+    const files: string[] = [];
+    const subdirs: string[] = [];
+
+    for (const e of entries) {
+      if (e.name.startsWith(".")) continue;
+      if (e.name === "node_modules") continue;
+
+      if (e.isFile() && e.name.toLowerCase().endsWith(".md")) {
+        files.push(e.name);
+        fileCount++;
+        if (fileCount >= TREE_MAX_FILES) {
+          truncated = true;
+          break;
+        }
+      } else if (e.isDirectory()) {
+        subdirs.push(e.name);
+      }
+    }
+
+    files.sort((a, b) => a.localeCompare(b));
+    subdirs.sort((a, b) => a.localeCompare(b));
+
+    const placeholderIndex = folders.length;
+    folders.push({ relPath: path.relative(rootPath, dir), files });
+
+    let descendantHasFiles = false;
+    if (!truncated) {
+      for (const sub of subdirs) {
+        if (walk(path.join(dir, sub), depth + 1)) descendantHasFiles = true;
+        if (truncated) break;
+      }
+    }
+
+    const keep = files.length > 0 || descendantHasFiles;
+    if (!keep) {
+      // Drop this placeholder; descendants that returned true are already in the
+      // array at indices > placeholderIndex and remain in place.
+      folders.splice(placeholderIndex, 1);
+    }
+    return keep;
+  }
+
+  walk(rootPath, 0);
+  return { folders, truncated };
+}
+
+// GET /api/tree?path=<absolute-dir> — recursively list .md files grouped by folder
+app.get("/api/tree", (req, res) => {
+  const requestedPath = typeof req.query.path === "string" ? req.query.path.trim() : "";
+  if (!requestedPath) {
+    res.status(400).json({ error: "Missing 'path' query parameter" });
+    return;
+  }
+  if (!path.isAbsolute(requestedPath)) {
+    res.status(400).json({ error: "Path must be absolute" });
+    return;
+  }
+
+  const absRoot = path.resolve(requestedPath);
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(absRoot);
+  } catch {
+    res.status(404).json({ error: "Path does not exist" });
+    return;
+  }
+  if (!stat.isDirectory()) {
+    res.status(400).json({ error: "Path is not a directory" });
+    return;
+  }
+
+  try {
+    const { folders, truncated } = scanForMarkdown(absRoot);
+    const response: TreeResponse = { rootPath: absRoot, folders, truncated };
+    res.json(response);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Scan failed" });
+  }
+});
+
+// GET /api/browse?path=<absolute-dir> — list immediate subdirectories so the
+// client-side directory picker can navigate the filesystem. Empty path defaults
+// to the user's home directory. Dotdirs are hidden.
+app.get("/api/browse", (req, res) => {
+  let requestedPath = typeof req.query.path === "string" ? req.query.path.trim() : "";
+  if (!requestedPath) requestedPath = os.homedir();
+  if (!path.isAbsolute(requestedPath)) {
+    res.status(400).json({ error: "Path must be absolute" });
+    return;
+  }
+
+  let absPath: string;
+  try {
+    absPath = fs.realpathSync(requestedPath);
+  } catch {
+    res.status(404).json({ error: "Path does not exist" });
+    return;
+  }
+
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(absPath);
+  } catch {
+    res.status(404).json({ error: "Path does not exist" });
+    return;
+  }
+  if (!stat.isDirectory()) {
+    res.status(400).json({ error: "Path is not a directory" });
+    return;
+  }
+
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(absPath, { withFileTypes: true });
+  } catch {
+    res.status(403).json({ error: "Cannot read directory" });
+    return;
+  }
+
+  const directories = entries
+    .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+    .map((e) => e.name)
+    .sort((a, b) => a.localeCompare(b));
+
+  const parent = path.dirname(absPath);
+  const isRoot = parent === absPath;
+
+  const response: BrowseResponse = {
+    absolute: absPath,
+    parent: isRoot ? null : parent,
+    directories,
+  };
+  res.json(response);
 });
 
 const restored = loadFromDisk();

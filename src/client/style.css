@@ -93,10 +93,267 @@ body {
 /* Editor container */
 .ProseMirror {
   padding: 1.5rem 2rem;
-  max-width: var(--content-max-width, 48rem);
+  max-width: min(var(--content-max-width, 48rem), 80vw);
   margin: 0 auto;
   outline: none;
   min-height: calc(100vh - 40px);
+}
+
+/* Plain-text view/edit. The wrapper is the full-width scroll container so the
+   scrollbar stays at the viewport edge, mirroring WYSIWYG. The textarea inside
+   matches .ProseMirror — same max-width, padding, and centering — and uses
+   field-sizing so its height grows with content (parent scrolls, not the
+   textarea). */
+/* Horizontal split below the path bar: left nav + content area. */
+.editor-body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  min-width: 0;
+}
+
+.editor-content-scroll {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Document outline (h2 navigation) */
+.doc-nav {
+  flex: 0 0 220px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--surface-alt);
+  font-family: system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  transition: flex-basis 0.15s ease;
+}
+
+.doc-nav-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.doc-nav-header {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+
+.doc-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.doc-nav-toggle:hover {
+  background: var(--btn-hover);
+  border-color: var(--btn-border);
+  color: var(--fg);
+}
+
+.doc-nav-toggle svg {
+  transition: transform 0.15s ease;
+}
+
+.doc-nav-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: 1px;
+  padding: 0 8px 12px;
+}
+
+.doc-nav-item {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: baseline;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  transition: background 0.1s, color 0.1s;
+}
+
+.doc-nav-marker {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-subtle);
+  padding-right: 6px;
+}
+
+.doc-nav-marker:empty {
+  padding-right: 0;
+}
+
+.doc-nav-text {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.doc-nav-item:hover {
+  background: var(--btn-hover);
+  color: var(--fg);
+}
+
+.doc-nav-item:hover .doc-nav-marker {
+  color: var(--fg);
+}
+
+/* Collapsed state — thin strip with just the toggle, chevron flipped. */
+.doc-nav--collapsed {
+  flex-basis: 32px;
+  overflow: hidden;
+}
+
+.doc-nav--collapsed .doc-nav-toolbar {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.doc-nav--collapsed .doc-nav-header,
+.doc-nav--collapsed .doc-nav-list {
+  display: none;
+}
+
+.doc-nav--collapsed .doc-nav-toggle svg {
+  transform: rotate(180deg);
+}
+
+.editor-plain-text {
+  display: block;
+  width: 100%;
+  max-width: min(var(--content-max-width, 48rem), 80vw);
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 1.5rem 2rem;
+  border: none;
+  outline: none;
+  resize: none;
+  field-sizing: content;
+  min-height: calc(100vh - 40px);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--fg);
+  white-space: pre;
+}
+
+.editor-plain-text--view {
+  background: var(--surface-raised);
+}
+
+/* Plain-text view wrapper hosts the floating copy button. The wrapper itself
+   doesn't scroll (so the absolutely-positioned button isn't clipped); the
+   inner .editor-content-scroll handles overflow. */
+.plain-text-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Overlay mirrors the textarea's centered max-width so the copy button can
+   sit at the top-right of the content pane (not the viewport edge). The
+   overlay itself spans full width but doesn't catch pointer events; only the
+   button inside does. */
+.plain-copy-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.plain-copy-overlay-inner {
+  width: 100%;
+  max-width: min(var(--content-max-width, 48rem), 80vw);
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 8px 0 0;
+  pointer-events: none;
+}
+
+.plain-copy-overlay-inner > * {
+  pointer-events: auto;
+}
+
+.plain-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  cursor: pointer;
+  line-height: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.plain-copy-btn:hover:not(:disabled) {
+  background: var(--btn-hover);
+  color: var(--fg);
+}
+
+.plain-copy-btn--copied {
+  color: #2a7a2a;
+  border-color: #7ab77a;
+  background: #f1f9f1;
+}
+
+[data-theme="dark"] .plain-copy-btn--copied {
+  color: #6ec86e;
+  border-color: rgba(110, 200, 110, 0.5);
+  background: rgba(42, 122, 42, 0.18);
+}
+
+.plain-copy-btn--error {
+  color: #cc3300;
+  border-color: #e0a090;
+  background: #fdf1ee;
+}
+
+[data-theme="dark"] .plain-copy-btn--error {
+  color: #ff8866;
+  border-color: rgba(204, 51, 0, 0.5);
+  background: rgba(204, 51, 0, 0.18);
 }
 
 /* Headings */
@@ -296,131 +553,162 @@ body {
   background: var(--selection);
 }
 
-/* Read-only badge */
-.read-only-badge {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 1px 7px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--badge-fg);
-  background: var(--badge-bg);
-  border: 1px solid var(--badge-border);
+
+/* Path-bar icon-style action buttons */
+.path-icon-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 4px;
-  vertical-align: middle;
-  letter-spacing: 0.02em;
-}
-
-/* Edit toggle button */
-.btn-toggle-edit {
-  padding: 8px 20px;
-  font-size: 15px;
-  font-weight: 500;
-  font-family: inherit;
-  border: 1px solid var(--btn-border);
-  border-radius: 6px;
-  background: var(--btn-bg);
-  color: var(--btn-fg);
+  color: var(--fg-muted);
   cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  transition: background 0.1s, border-color 0.1s;
+  line-height: 0;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 
-.btn-toggle-edit:hover {
+.path-icon-btn:hover:not(:disabled) {
   background: var(--btn-hover);
+  border-color: var(--btn-border);
+  color: var(--fg);
 }
 
-.btn-toggle-edit--active {
+.path-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.path-icon-btn--active {
   background: var(--btn-edit-bg);
   border-color: var(--btn-edit-border);
   color: var(--btn-edit-fg);
 }
 
-.btn-toggle-edit--active:hover {
+.path-icon-btn--active:hover:not(:disabled) {
   background: var(--btn-edit-hover);
+  color: var(--btn-edit-fg);
 }
 
-/* Header buttons — shared base */
-.btn-save,
-.btn-done {
-  padding: 8px 20px;
-  font-size: 15px;
-  font-weight: 500;
-  font-family: inherit;
-  border: 1px solid var(--btn-border);
-  border-radius: 6px;
-  background: var(--btn-bg);
-  color: var(--btn-fg);
-  cursor: pointer;
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-  transition: background 0.1s;
+.path-icon-btn--danger {
+  color: #cc3300;
 }
 
-.btn-save:active,
-.btn-done:active {
-  background: var(--btn-active);
-  transform: scale(0.97);
+.path-icon-btn--danger:hover:not(:disabled) {
+  background: #fdf1ee;
+  border-color: #e0a090;
+  color: #cc3300;
 }
 
-.btn-save:disabled,
-.btn-done:disabled {
-  opacity: 0.5;
-  cursor: default;
+[data-theme="dark"] .path-icon-btn--danger {
+  color: #ff7755;
 }
 
-.btn-home {
-  background: #fff3b0;
-  border-color: #e6d77a;
-  color: #333;
+[data-theme="dark"] .path-icon-btn--danger:hover:not(:disabled) {
+  background: rgba(204, 51, 0, 0.18);
+  border-color: rgba(204, 51, 0, 0.5);
+  color: #ff8866;
 }
 
-.btn-home:hover {
-  background: #fde98c;
+.path-icon-btn--home {
+  color: #b8860b;
 }
 
-[data-theme="dark"] .btn-home {
-  background: #8a6100;
-  border-color: #b8860b;
-  color: #fff;
+.path-icon-btn--home:hover:not(:disabled) {
+  background: #fff5d8;
+  border-color: #e0b860;
+  color: #8a6100;
 }
 
-[data-theme="dark"] .btn-home:hover {
-  background: #a07500;
+[data-theme="dark"] .path-icon-btn--home {
+  color: #e6b800;
 }
 
-.btn-delete {
-  padding: 8px 20px;
-  font-size: 15px;
-  font-weight: 500;
-  font-family: inherit;
-  border: 1px solid #a00;
-  border-radius: 6px;
-  background: #cc2222;
-  color: #fff;
-  cursor: pointer;
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-  transition: background 0.1s;
+[data-theme="dark"] .path-icon-btn--home:hover:not(:disabled) {
+  background: rgba(230, 184, 0, 0.18);
+  border-color: rgba(230, 184, 0, 0.5);
+  color: #f0c849;
 }
 
-.btn-delete:hover {
-  background: #aa1111;
+.path-icon-btn--outline {
+  color: var(--btn-edit-fg);
 }
 
-.btn-delete:active {
-  background: #881111;
-  transform: scale(0.97);
+.path-icon-btn--outline:hover:not(:disabled) {
+  background: var(--btn-edit-bg);
+  border-color: var(--btn-edit-border);
+  color: var(--btn-edit-fg);
 }
 
-.btn-delete:disabled {
-  opacity: 0.5;
-  cursor: default;
+.path-icon-btn--warn {
+  color: #c25e00;
+}
+
+.path-icon-btn--warn:hover:not(:disabled) {
+  background: #fff1e0;
+  border-color: #e8b88a;
+  color: #a04d00;
+}
+
+[data-theme="dark"] .path-icon-btn--warn {
+  color: #ff9944;
+}
+
+[data-theme="dark"] .path-icon-btn--warn:hover:not(:disabled) {
+  background: rgba(255, 153, 68, 0.18);
+  border-color: rgba(255, 153, 68, 0.5);
+  color: #ffb066;
+}
+
+.path-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Read-only / Edit mode indicator (icon only, not interactive) */
+.doc-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  line-height: 0;
+}
+
+.doc-state-icon--locked {
+  color: var(--fg-muted);
+}
+
+.doc-state-icon--editing {
+  color: var(--btn-edit-fg);
+}
+
+.path-bar-flex {
+  min-width: 0;
+}
+
+/* Inline error banner that replaces the old header's actionError display */
+.editor-action-error {
+  flex-shrink: 0;
+  padding: 6px 16px;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  color: #cc3300;
+  background: #fdf1ee;
+  border-bottom: 1px solid #e0a090;
+}
+
+[data-theme="dark"] .editor-action-error {
+  color: #ff8866;
+  background: rgba(204, 51, 0, 0.15);
+  border-bottom-color: rgba(204, 51, 0, 0.4);
 }
 
 /* Theme-aware icon: dark icon shown in light mode, light icon shown in dark mode */
@@ -458,8 +746,8 @@ body {
   position: static;
   top: auto;
   right: auto;
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   border-radius: 4px;
   flex-shrink: 0;
   background: transparent;
@@ -473,42 +761,40 @@ body {
   color: var(--fg);
 }
 
-/* Editor structural elements */
-.editor-path-bar {
+/* Top bar — uniform across editor, tree, and list home views. The contents
+   inside vary per page but the bar dimensions, padding, and background do not. */
+.app-top-bar {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 4px 16px;
   background: var(--surface-alt);
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Unified app brand — used on every page so size and weight stay consistent. */
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
 }
 
 .editor-path-text {
   flex: 0 1 auto;
   min-width: 0;
   font-family: monospace;
-  font-size: 12px;
-  color: var(--fg-subtle);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.editor-path-bar > .btn-theme-toggle--compact {
-  margin-left: auto;
-}
-
-.editor-header {
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
-  font-family: system-ui, sans-serif;
-  font-size: 14px;
-  color: var(--fg-muted);
-  flex-shrink: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--bg);
 }
 
 .width-slider {
@@ -542,4 +828,616 @@ body {
 
 .width-slider input[type="range"] {
   width: min(34vw, 240px);
+}
+
+/* Tree home (browse markdown by directory) */
+.tree-page {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 4rem;
+}
+
+/* Two-pane layout: shows two independent root hierarchies side by side. */
+.tree-multi {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  padding: 1.5rem 1.5rem 4rem;
+}
+
+.tree-pane {
+  min-width: 0;
+}
+
+.tree-spacer {
+  flex: 1;
+}
+
+.tree-controls {
+  margin-bottom: 1.5rem;
+}
+
+.tree-input-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+.tree-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.tree-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  outline: none;
+}
+
+.tree-input:focus {
+  border-color: var(--btn-edit-border);
+}
+
+/* Icon-only buttons that sit next to the path input. Sized to roughly match
+   the input's height, square so they read as icons rather than chips. */
+.tree-load-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.tree-load-btn:hover:not(:disabled) {
+  background: var(--btn-hover);
+  color: var(--fg);
+}
+
+.tree-load-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tree-load-btn--loading svg {
+  animation: tree-load-spin 0.8s linear infinite;
+}
+
+@keyframes tree-load-spin {
+  to { transform: rotate(360deg); }
+}
+
+.tree-error {
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #cc3300;
+  background: #fdf1ee;
+  border: 1px solid #e0a090;
+  border-radius: 6px;
+}
+
+[data-theme="dark"] .tree-error {
+  color: #ff8866;
+  background: rgba(204, 51, 0, 0.15);
+  border-color: rgba(204, 51, 0, 0.4);
+}
+
+.tree-empty {
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
+.tree-folder {
+  margin-bottom: 0.5rem;
+  padding-left: calc(var(--folder-depth, 0) * 18px);
+}
+
+.tree-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tree-folder-toggle {
+  /* Sized to its content (chevron + name) so the copy button sits inline,
+     immediately after the folder name. */
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--fg);
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.tree-folder-toggle:hover {
+  background: var(--btn-hover);
+  border-color: var(--btn-border);
+}
+
+.tree-folder-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--fg-subtle);
+  transition: transform 0.12s;
+}
+
+/* Right (default chevron) needs no rotation */
+.tree-folder-toggle--down .tree-folder-chevron {
+  transform: rotate(90deg);
+}
+
+.tree-folder-toggle--up .tree-folder-chevron {
+  transform: rotate(-90deg);
+}
+
+.tree-folder-toggle--inert {
+  cursor: default;
+}
+
+.tree-folder-toggle--inert:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+.tree-folder-chevron--blank {
+  visibility: hidden;
+}
+
+.tree-folder-name {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-folder-count {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--badge-fg);
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
+  border-radius: 999px;
+}
+
+.tree-file-list {
+  list-style: none;
+  padding: 0.25rem 0 0.5rem 28px;
+  margin: 0;
+}
+
+.tree-file-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 1px 0;
+}
+
+.tree-file-link {
+  /* Sized to the filename text so the copy icon sits inline, immediately
+     after the filename. */
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 4px 8px;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  color: var(--link);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.1s;
+}
+
+.tree-file-link:hover:not(:disabled) {
+  background: var(--btn-hover);
+  text-decoration: underline;
+}
+
+.tree-file-link:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* Per-row icon controls (pin / delete / copy) */
+.tree-row-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  line-height: 0;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.tree-row-icon:hover:not(:disabled) {
+  background: var(--btn-hover);
+  border-color: var(--btn-border);
+  color: var(--fg);
+}
+
+.tree-row-icon:disabled {
+  opacity: 0.4;
+  cursor: wait;
+}
+
+.tree-row-icon--delete:hover:not(:disabled) {
+  background: #fdf1ee;
+  border-color: #e0a090;
+  color: #cc3300;
+}
+
+[data-theme="dark"] .tree-row-icon--delete:hover:not(:disabled) {
+  background: rgba(204, 51, 0, 0.18);
+  border-color: rgba(204, 51, 0, 0.5);
+  color: #ff8866;
+}
+
+.tree-row-icon--copied {
+  color: #2a7a2a;
+  border-color: #7ab77a;
+  background: #f1f9f1;
+}
+
+[data-theme="dark"] .tree-row-icon--copied {
+  color: #6ec86e;
+  border-color: rgba(110, 200, 110, 0.5);
+  background: rgba(42, 122, 42, 0.18);
+}
+
+/* Pin button — 3 states cycle dimmed → registered → pinned → dimmed.
+     dimmed     = file is NOT registered (default; muted, low-opacity)
+     registered = file is on the home view (foreground color, full opacity)
+     pinned     = file is in the priority list on home (red, full opacity) */
+.tree-row-icon--pin-dimmed {
+  color: var(--fg-muted);
+  opacity: 0.4;
+}
+
+.tree-row-icon--pin-dimmed:hover:not(:disabled) {
+  background: var(--btn-hover);
+  border-color: var(--btn-border);
+  color: var(--fg-muted);
+  opacity: 0.7;
+}
+
+.tree-row-icon--pin-registered,
+.tree-row-icon--pin-registered:hover:not(:disabled) {
+  color: var(--fg);
+  opacity: 1;
+}
+
+.tree-row-icon--pin-registered:hover:not(:disabled) {
+  background: var(--btn-hover);
+  border-color: var(--btn-border);
+}
+
+.tree-row-icon--pin-pinned,
+.tree-row-icon--pin-pinned:hover:not(:disabled) {
+  color: #cc3300;
+  opacity: 1;
+}
+
+.tree-row-icon--pin-pinned:hover:not(:disabled) {
+  background: #fdf1ee;
+  border-color: #e0a090;
+}
+
+[data-theme="dark"] .tree-row-icon--pin-pinned,
+[data-theme="dark"] .tree-row-icon--pin-pinned:hover:not(:disabled) {
+  color: #ff7755;
+}
+
+[data-theme="dark"] .tree-row-icon--pin-pinned:hover:not(:disabled) {
+  background: rgba(204, 51, 0, 0.18);
+  border-color: rgba(204, 51, 0, 0.5);
+}
+
+/* Home / hierarchy switcher in the tree page header */
+.home-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.home-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.home-switch:hover:not(:disabled) {
+  background: var(--btn-bg);
+  border-color: var(--btn-border);
+  color: var(--fg);
+}
+
+.home-switch--home {
+  color: #b8860b;
+}
+
+.home-switch--home:hover:not(:disabled) {
+  background: #fff5d8;
+  border-color: #e0b860;
+  color: #8a6100;
+}
+
+[data-theme="dark"] .home-switch--home {
+  color: #e6b800;
+}
+
+[data-theme="dark"] .home-switch--home:hover:not(:disabled) {
+  background: rgba(230, 184, 0, 0.18);
+  border-color: rgba(230, 184, 0, 0.5);
+  color: #f0c849;
+}
+
+.home-switch--tree {
+  color: var(--btn-edit-fg);
+}
+
+.home-switch--tree:hover:not(:disabled) {
+  background: var(--btn-edit-bg);
+  border-color: var(--btn-edit-border);
+}
+
+.home-switch--active {
+  background: var(--btn-edit-bg);
+  border-color: var(--btn-edit-border);
+  color: var(--btn-edit-fg);
+  cursor: default;
+}
+
+.tree-truncated {
+  margin-top: 1rem;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--fg-muted);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* Directory picker modal — used by each TreePane's Browse button. */
+.picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.picker-dialog {
+  width: 600px;
+  max-width: 100%;
+  max-height: 80vh;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, sans-serif;
+  color: var(--fg);
+}
+
+.picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.picker-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.picker-close {
+  width: 28px;
+  height: 28px;
+  font-size: 22px;
+  line-height: 1;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.picker-close:hover {
+  background: var(--btn-hover);
+  border-color: var(--btn-border);
+  color: var(--fg);
+}
+
+.picker-path {
+  padding: 8px 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.picker-error {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #cc3300;
+  background: #fdf1ee;
+  border-bottom: 1px solid #e0a090;
+}
+
+[data-theme="dark"] .picker-error {
+  color: #ff8866;
+  background: rgba(204, 51, 0, 0.15);
+  border-bottom-color: rgba(204, 51, 0, 0.4);
+}
+
+.picker-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 6px 8px;
+}
+
+.picker-list li {
+  margin: 0;
+}
+
+.picker-empty {
+  padding: 8px 12px;
+  color: var(--fg-muted);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.picker-item:hover {
+  background: var(--btn-hover);
+  border-color: var(--btn-border);
+}
+
+.picker-item-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--fg-muted);
+}
+
+.picker-item--up .picker-item-glyph {
+  font-weight: 600;
+}
+
+.picker-item-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.picker-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  transition: background 0.1s;
+}
+
+.picker-btn:hover:not(:disabled) {
+  background: var(--btn-hover);
+}
+
+.picker-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.picker-btn--primary {
+  background: var(--btn-edit-bg);
+  border-color: var(--btn-edit-border);
+  color: var(--btn-edit-fg);
+}
+
+.picker-btn--primary:hover:not(:disabled) {
+  background: var(--btn-edit-hover);
 }
