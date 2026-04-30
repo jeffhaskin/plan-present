@@ -840,7 +840,7 @@ body {
 /* Two-pane layout: shows two independent root hierarchies side by side. */
 .tree-multi {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 1.5rem;
   padding: 1.5rem 1.5rem 4rem;
 }

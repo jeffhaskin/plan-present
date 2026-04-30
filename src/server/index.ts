@@ -306,7 +306,7 @@ const HOME_SWITCHER_CSS =
   "[data-theme=dark] .home-switch-btn--tree{color:#6ec86e}" +
   ".home-switch-btn--active{background:var(--btn-bg);border-color:var(--btn-border);cursor:default}" +
   ".app-top-spacer{flex:1}" +
-  ".page-body{padding:2rem 100px}" +
+  ".page-body{padding:0.5rem 100px 2rem}" +
   // Theme toggle inside the bar — override the page-level fixed-positioned rule.
   ".app-top-bar .btn-theme-toggle{position:static;top:auto;right:auto;width:32px;height:32px;flex-shrink:0;background:transparent;border-color:transparent}" +
   ".app-top-bar .btn-theme-toggle:hover{background:var(--btn-bg);border-color:var(--btn-border)}";
@@ -382,28 +382,23 @@ document.getElementById('theme-btn').addEventListener('click',function(){apply(!
     return;
   }
 
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const fmtTs = (iso: string) => {
-    const t = new Date(iso);
-    if (Number.isNaN(t.getTime())) return iso;
-    return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())} ${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`;
-  };
-
   const escAttr = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
   const COPY_SVG =
-    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='13' height='13' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='13' height='13' rx='2' ry='2'/><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/></svg>";
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='13' height='13' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/><path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/></svg>";
   const CHECK_SVG =
     "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='13' height='13' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>";
   const RESET_SVG =
-    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='23 4 23 10 17 10'/><polyline points='1 20 1 14 7 14'/><path d='M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15'/></svg>";
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='8' y1='12' x2='16' y2='12'/></svg>";
   const TRASH_SVG =
     "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/><line x1='10' y1='11' x2='10' y2='17'/><line x1='14' y1='11' x2='14' y2='17'/></svg>";
+  const PIN_SVG =
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 17v5'/><path d='M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z'/></svg>";
 
   const rows = docs
     .map((d) => {
       const dir = path.dirname(d.absolutePath);
-      return `<tr data-pinned="${d.pinned ? "true" : "false"}" data-priority="${d.priorityPin ?? ""}" data-name="${escAttr(d.originalBaseName)}"><td class="pin-col"><div class="pin-controls"><button type="button" class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">\u{1F4CC}</button><button type="button" class="prio-move prio-top" data-slug="${d.slug}" data-direction="top" title="${d.pinned ? "Move to top" : "Pin & move to top"}">\u2912</button><button type="button" class="prio-move prio-up" data-slug="${d.slug}" data-direction="up" title="Move up"${d.pinned ? "" : " disabled"}>\u25B2</button><button type="button" class="prio-move prio-down" data-slug="${d.slug}" data-direction="down" title="Move down"${d.pinned ? "" : " disabled"}>\u25BC</button><button type="button" class="prio-move prio-bottom" data-slug="${d.slug}" data-direction="bottom" title="Move to bottom"${d.pinned ? "" : " disabled"}>\u2913</button></div></td><td class="actions-col"><button type="button" class="row-action row-reset" data-slug="${d.slug}" title="Deregister (remove from list; file stays on disk)" aria-label="Deregister">${RESET_SVG}</button><button type="button" class="row-action row-delete" data-slug="${d.slug}" title="Delete file from disk" aria-label="Delete file">${TRASH_SVG}</button></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a><button type="button" class="row-action dir-copy-btn" data-path="${escAttr(d.absolutePath)}" title="Copy full pathname" aria-label="Copy full pathname">${COPY_SVG}</button></td><td class="dir"><code>${dir}</code></td><td>${fmtTs(d.registeredAt)}</td></tr>`;
+      return `<tr data-pinned="${d.pinned ? "true" : "false"}" data-priority="${d.priorityPin ?? ""}" data-name="${escAttr(d.originalBaseName)}"><td class="pin-col"><div class="pin-controls"><button type="button" class="pin-btn${d.pinned ? " pinned" : ""}" data-slug="${d.slug}" title="${d.pinned ? "Unpin" : "Pin"}" aria-label="${d.pinned ? "Unpin" : "Pin"}">${PIN_SVG}</button><button type="button" class="prio-move prio-top" data-slug="${d.slug}" data-direction="top" title="${d.pinned ? "Move to top" : "Pin & move to top"}">\u2912</button><button type="button" class="prio-move prio-up" data-slug="${d.slug}" data-direction="up" title="Move up"${d.pinned ? "" : " disabled"}>\u25B2</button><button type="button" class="prio-move prio-down" data-slug="${d.slug}" data-direction="down" title="Move down"${d.pinned ? "" : " disabled"}>\u25BC</button><button type="button" class="prio-move prio-bottom" data-slug="${d.slug}" data-direction="bottom" title="Move to bottom"${d.pinned ? "" : " disabled"}>\u2913</button></div></td><td class="actions-col"><button type="button" class="row-action row-reset" data-slug="${d.slug}" title="Deregister (remove from list; file stays on disk)" aria-label="Deregister">${RESET_SVG}</button><button type="button" class="row-action row-delete" data-slug="${d.slug}" title="Delete file from disk" aria-label="Delete file">${TRASH_SVG}</button></td><td><a href="/doc/${d.slug}">${d.originalBaseName}</a><button type="button" class="row-action dir-copy-btn" data-path="${escAttr(d.absolutePath)}" title="Copy full pathname" aria-label="Copy full pathname">${COPY_SVG}</button></td><td class="dir"><code>${dir}</code></td></tr>`;
     })
     .join("\n");
 
@@ -412,7 +407,7 @@ document.getElementById('theme-btn').addEventListener('click',function(){apply(!
 <script>(function(){try{var t=localStorage.getItem('plan-present-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})()</script>
 <style>:root{--bg:#fff;--fg:#333;--fg-muted:#666;--surface:#f4f4f4;--border:#eee;--link:#0066cc;--btn-bg:#f5f5f5;--btn-border:#ccc;--btn-fg:#444;--sel-bg:#fafafa;--sort-fg:#999;--prio-bg:#fff;--prio-fg:#666;--prio-border:#ddd}[data-theme=dark]{--bg:#1a1a1a;--fg:#d8d8d8;--fg-muted:#aaa;--surface:#252525;--border:#333;--link:#5599ee;--btn-bg:#2a2a2a;--btn-border:#444;--btn-fg:#bbb;--sel-bg:#2a2a2a;--sort-fg:#666;--prio-bg:#252525;--prio-fg:#aaa;--prio-border:#444}
 body{font-family:system-ui,sans-serif;margin:2rem auto;padding:0 100px;color:var(--fg);background:var(--bg)}
-table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)}
 th{font-weight:600}a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
 code{background:var(--surface);padding:2px 6px;border-radius:3px}
 th.actions-col,td.actions-col{width:56px;text-align:center;padding-left:4px;padding-right:4px;white-space:nowrap}
@@ -431,9 +426,12 @@ td.dir{white-space:normal;word-break:break-all}
 th.pin-col,td.pin-col{width:108px;padding-left:8px;padding-right:4px}
 th.pin-col{text-align:center}
 .pin-controls{display:flex;align-items:center;gap:2px;justify-content:flex-start}
-.pin-btn{background:none;border:none;cursor:pointer;font-size:1.05rem;padding:2px 4px;line-height:1;opacity:0.22;filter:grayscale(1);transition:opacity 0.15s,filter 0.15s,transform 0.15s;transform:rotate(35deg)}
-.pin-btn:hover{opacity:0.55}
-.pin-btn.pinned{opacity:1;filter:none;transform:rotate(0deg)}
+.pin-btn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;background:none;border:1px solid transparent;border-radius:4px;cursor:pointer;color:var(--fg);line-height:0;transition:color 0.15s,background 0.15s,border-color 0.15s}
+.pin-btn:hover{background:var(--btn-bg);border-color:var(--btn-border)}
+.pin-btn.pinned{color:#cc3300}
+.pin-btn.pinned:hover{background:#fdf1ee;border-color:#e0a090}
+[data-theme="dark"] .pin-btn.pinned{color:#ff7755}
+[data-theme="dark"] .pin-btn.pinned:hover{background:rgba(204,51,0,0.18);border-color:rgba(204,51,0,0.5)}
 .pin-btn:disabled{cursor:wait}
 .prio-move{background:none;border:1px solid transparent;border-radius:3px;padding:0 3px;cursor:pointer;font-size:0.7rem;line-height:1;color:var(--prio-fg);opacity:0.7;transition:opacity 0.12s,background 0.12s,border-color 0.12s}
 .prio-move:hover:not(:disabled){opacity:1;background:var(--sel-bg);border-color:var(--btn-border);color:var(--fg)}
@@ -446,9 +444,8 @@ tr[data-pinned="false"] .prio-top:hover{opacity:0.55;background:none;border-colo
 ${HOME_SWITCHER_CSS}</style></head>
 <body>${HOME_SWITCHER_HTML}
 <div class="page-body">
-<p>${docs.length} document${docs.length === 1 ? "" : "s"} registered.</p>
 <table><thead>
-<tr><th class="pin-col" title="Pinned (up/down to reorder)">\u{1F4CC}</th><th class="actions-col" title="Deregister / Delete"></th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th><th>Registered <button class="sort-btn" id="sort-reg" title="Sort by registered date">↓</button></th></tr>
+<tr><th class="pin-col" title="Pinned (up/down to reorder)"></th><th class="actions-col" title="Deregister / Delete"></th><th>File <button class="sort-btn" id="sort-file" title="Sort by file name">⇅</button></th><th>Directory <button class="sort-btn" id="sort-dir" title="Sort by directory">⇅</button></th></tr>
 </thead>
 <tbody>${rows}</tbody></table>
 <script>
@@ -483,8 +480,8 @@ document.querySelectorAll('.row-delete').forEach(btn => {
 const tbody = document.querySelector('tbody');
 const origRows = Array.from(tbody.rows);
 const origIndex = new Map(origRows.map((r, i) => [r, i]));
-const COL_IDX = {file: 2, dir: 3, reg: 4};
-const sortState = {file: null, dir: null, reg: 'desc'};
+const COL_IDX = {file: 2, dir: 3};
+const sortState = {file: null, dir: null};
 const ICONS = {null: '\u21c5', asc: '\u2191', desc: '\u2193'};
 function priorityOf(row) {
   const v = row.dataset.priority;
@@ -517,19 +514,15 @@ function rebuildOrder() {
   rows.forEach(r => tbody.appendChild(r));
   document.getElementById('sort-file').textContent = ICONS[sortState.file ?? null];
   document.getElementById('sort-dir').textContent = ICONS[sortState.dir ?? null];
-  document.getElementById('sort-reg').textContent = ICONS[sortState.reg ?? null];
 }
 function applySort(col) {
-  const first = col === 'reg' ? 'desc' : 'asc';
-  const second = first === 'asc' ? 'desc' : 'asc';
-  const next = sortState[col] === null ? first : sortState[col] === first ? second : null;
+  const next = sortState[col] === null ? 'asc' : sortState[col] === 'asc' ? 'desc' : null;
   Object.keys(sortState).forEach(k => sortState[k] = null);
   sortState[col] = next;
   rebuildOrder();
 }
 document.getElementById('sort-file').addEventListener('click', () => applySort('file'));
 document.getElementById('sort-dir').addEventListener('click', () => applySort('dir'));
-document.getElementById('sort-reg').addEventListener('click', () => applySort('reg'));
 async function copyText(text) {
   try {
     if (navigator.clipboard && window.isSecureContext) {
